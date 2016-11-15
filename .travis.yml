@@ -4,6 +4,10 @@ go:
   - 1.7
   - tip
 
+before_install:
+  - sudo apt-get -qq update
+  - sudo apt-get install -y libgeoip-dev
+
 install:
   - go get github.com/turbobytes/geoipdb
 
