@@ -26,17 +26,58 @@
 package geoipdb_test
 
 import (
+	"net"
 	"testing"
 
 	"github.com/turbobytes/geoipdb"
 )
 
-var gip geoipdb.Handler
+const host = "www.turbobytes.com"
+
+var ip string
+
+func TestInitIp(t *testing.T) {
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		t.Fatalf("failed to lookup ip addresses for '%s': %s", host, err)
+	}
+	if len(ips) < 1 {
+		t.Fatalf("ip address lookup for '%s' returned empty", host)
+	}
+	ip = ips[0].String()
+	t.Logf("using ip %s (%s) for tests", ip, host)
+}
+
+var gh geoipdb.Handler
 
 func TestCreateHandler(t *testing.T) {
 	var err error
-	gip, err = geoipdb.New()
+	gh, err = geoipdb.NewHandler()
 	if err != nil {
 		t.Fatalf("geoipdb.New failed: %s", err)
 	}
+}
+
+func TestLibGeoipLookup(t *testing.T) {
+	asn, asnDescr := gh.LibGeoipLookup(ip)
+	if asn == "" {
+		t.Fatalf("ASN of ip '%s' is unknown by libgeoip", ip)
+	}
+	t.Logf("libgeoip results: %s %s", asn, asnDescr)
+}
+
+func TestIpInfoLookup(t *testing.T) {
+	asn, asnDescr, err := gh.IpInfoLookup(ip)
+	if err != nil {
+		t.Fatalf("IpInfoLookup failed: %s", err)
+	}
+	t.Logf("ipinfo.io results: %s %s", asn, asnDescr)
+}
+
+func TestLookupAsn(t *testing.T) {
+	asn, asnName, err := gh.LookupAsn(ip)
+	if err != nil {
+		t.Fatalf("LookupAsn failed for %s: %s", ip, err)
+	}
+	t.Logf("LookupAsn results: %s %s", asn, asnName)
 }
