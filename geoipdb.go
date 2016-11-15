@@ -33,6 +33,7 @@ package geoipdb
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -89,11 +90,26 @@ func (h Handler) LibGeoipLookup(ip string) (string, string) {
 // an ASN identification
 // and the corresponding description.
 func (h Handler) LookupAsn(ip string) (string, string, error) {
-	asn, asnDescr := h.LibGeoipLookup(ip)
-	if asn == "" {
-		return "", "", fmt.Errorf("unknown ASN for ip '%v'", ip)
+	asnGi, asnDescr := h.LibGeoipLookup(ip)
+	if asnGi != "" && asnDescr != "" {
+		return asnGi, asnDescr, nil
 	}
-	return asn, asnDescr, nil
+	asnDescr = ""
+	asnIp, asnDescr, errIp := h.IpInfoLookup(ip)
+	if errIp == nil {
+		if asnIp != "" && asnDescr != "" {
+			return asnIp, asnDescr, nil
+		}
+	} else {
+		log.Println(errIp)
+	}
+	if errIp == nil && asnIp != "" {
+		return asnIp, "", nil
+	}
+	if asnGi != "" {
+		return asnGi, "", nil
+	}
+	return "", "", fmt.Errorf("unknown ASN for ip '%v'", ip)
 }
 
 // IpInfoLookup queries ipinfo.io for the ASN of a given ip address.
