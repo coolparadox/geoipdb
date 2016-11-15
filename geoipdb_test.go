@@ -32,6 +32,22 @@ import (
 	"github.com/turbobytes/geoipdb"
 )
 
+const host = "www.turbobytes.com"
+
+var ip string
+
+func TestInitIp(t *testing.T) {
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		t.Fatalf("failed to lookup ip addresses for '%s': %s", host, err)
+	}
+	if len(ips) < 1 {
+		t.Fatalf("ip address lookup for '%s' returned empty", host)
+	}
+	ip = ips[0].String()
+	t.Logf("using ip %s (%s) for tests", ip, host)
+}
+
 var gh geoipdb.Handler
 
 func TestCreateHandler(t *testing.T) {
@@ -42,21 +58,18 @@ func TestCreateHandler(t *testing.T) {
 	}
 }
 
+func TestGeoipLookup(t *testing.T) {
+	asn, asnDescr := gh.GeoipLookup(ip)
+	if asn == "" {
+		t.Fatalf("ASN of ip '%s' is unknown by libgeoip", ip)
+	}
+	t.Logf("libgeoip results: %s %s", asn, asnDescr)
+}
+
 func TestLookupAsn(t *testing.T) {
-	var err error
-	host := "www.turbobytes.com"
-	ips, err := net.LookupIP(host)
+	asn, asnName, err := gh.LookupAsn(ip)
 	if err != nil {
-		t.Fatalf("failed to lookup ip addresses for '%s': %s", host, err)
+		t.Fatalf("LookupAsn failed for %s: %s", ip, err)
 	}
-	if len(ips) < 1 {
-		t.Fatalf("ip address lookup for '%s' returned empty", host)
-	}
-	ip := ips[0]
-	t.Logf("using ip %s (%s)", ip, host)
-	asn, asnName, err := gh.LookupAsn(ip.String())
-	if err != nil {
-		t.Fatalf("LookupAsn failed for ip %s: %s", ip, err)
-	}
-	t.Logf("%s (%v) is part of %s %s", host, ip, asn, asnName)
+	t.Logf("LookupAsn results: %s %s", asn, asnName)
 }

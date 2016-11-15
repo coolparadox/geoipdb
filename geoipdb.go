@@ -32,29 +32,52 @@ package geoipdb
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/abh/geoip"
 )
 
 // Handler is a handler to TurboBytes GeoIP helper functions.
 type Handler struct {
-	gip *geoip.GeoIP
+	gi *geoip.GeoIP
 }
 
 // NewHandler creates and returns a geoipdb handler.
 func NewHandler() (Handler, error) {
-	gip, err := geoip.OpenType(geoip.GEOIP_ASNUM_EDITION)
+	gi, err := geoip.OpenType(geoip.GEOIP_ASNUM_EDITION)
 	if err != nil {
 		return Handler{}, fmt.Errorf("cannot open GeoIP database: %s", err)
 	}
-	return Handler{gip: gip}, nil
+	return Handler{gi: gi}, nil
 }
 
-// LookupAsn answers the Autonomous System Number (ASN) of a valid IP address.
+// GeoipLookup queries the libgeoip database for the ASN of a given ip address.
+//
+// If found, returns
+// an ASN identification
+// and the corresponding description.
+func (h Handler) GeoipLookup(ip string) (string, string) {
+	tmp, _ := h.gi.GetName(ip)
+	if tmp == "" {
+		return "", ""
+	}
+	answer := strings.SplitN(tmp, " ", 2)
+	if len(answer) < 2 {
+		return answer[0], ""
+	}
+	return answer[0], answer[1]
+}
+
+// LookupAsn searches for the Autonomous System Number (ASN)
+// of a valid IP address.
 //
 // Returns
-// an ASN identification (eg "AS15169")
-// and the corresponding network name (eg. "Google Inc.").
+// an ASN identification
+// and the corresponding description.
 func (h Handler) LookupAsn(ip string) (string, string, error) {
-	return "", "", fmt.Errorf("not yet implemented")
+	asn, asnDescr := h.GeoipLookup(ip)
+	if asn == "" {
+		return "", "", fmt.Errorf("unknown ASN for ip '%v'", ip)
+	}
+	return asn, asnDescr, nil
 }
