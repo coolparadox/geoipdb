@@ -32,10 +32,20 @@ package geoipdb
 
 import (
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/abh/geoip"
 )
+
+// reASN is a regexp for matching against an ASN.
+var reASN *regexp.Regexp
+
+func init() {
+	reASN = regexp.MustCompilePOSIX("^AS[[:digit:]]+$")
+}
 
 // Handler is a handler to TurboBytes GeoIP helper functions.
 type Handler struct {
@@ -58,6 +68,7 @@ func NewHandler() (Handler, error) {
 // and the corresponding description.
 func (h Handler) LibGeoipLookup(ip string) (string, string) {
 	tmp, _ := h.gi.GetName(ip)
+	tmp = strings.TrimSpace(tmp)
 	if tmp == "" {
 		return "", ""
 	}
@@ -71,6 +82,9 @@ func (h Handler) LibGeoipLookup(ip string) (string, string) {
 // LookupAsn searches for the Autonomous System Number (ASN)
 // of a valid IP address.
 //
+// This is the preferred ASN lookup function to be used by clients,
+// as it queries several resources for finding proper answers.
+//
 // Returns
 // an ASN identification
 // and the corresponding description.
@@ -80,4 +94,36 @@ func (h Handler) LookupAsn(ip string) (string, string, error) {
 		return "", "", fmt.Errorf("unknown ASN for ip '%v'", ip)
 	}
 	return asn, asnDescr, nil
+}
+
+// IpInfoLookup queries ipinfo.io for the ASN of a given ip address.
+//
+// Returns
+// an ASN identification
+// and the corresponding description.
+func (h Handler) IpInfoLookup(ip string) (string, string, error) {
+	url := fmt.Sprintf("http://ipinfo.io/%s/org", ip)
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to GET '%s': %s", url, err)
+	}
+	defer resp.Body.Close()
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to read ipinfo.io response: %s", err)
+	}
+	asnData := strings.TrimSpace(string(data))
+	if asnData == "" {
+		return "", "", fmt.Errorf("GET '%s' returned an empty answer", url)
+	}
+	answer := strings.SplitN(asnData, " ", 2)
+	// ipinfo.io returns errors as regular text (no outband error codes).
+	// Let's try to be smart and identify them.
+	if !reASN.MatchString(answer[0]) {
+		return "", "", fmt.Errorf("ipinfo.io lookup failed for '%s': %s", ip, asnData)
+	}
+	if len(answer) < 2 {
+		return answer[0], "", nil
+	}
+	return answer[0], answer[1], nil
 }

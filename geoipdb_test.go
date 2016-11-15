@@ -66,6 +66,14 @@ func TestLibGeoipLookup(t *testing.T) {
 	t.Logf("libgeoip results: %s %s", asn, asnDescr)
 }
 
+func TestIpInfoLookup(t *testing.T) {
+	asn, asnDescr, err := gh.IpInfoLookup(ip)
+	if err != nil {
+		t.Fatalf("IpInfoLookup failed: %s", err)
+	}
+	t.Logf("ipinfo.io results: %s %s", asn, asnDescr)
+}
+
 func TestLookupAsn(t *testing.T) {
 	asn, asnName, err := gh.LookupAsn(ip)
 	if err != nil {
