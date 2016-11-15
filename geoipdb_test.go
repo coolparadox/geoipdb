@@ -26,17 +26,37 @@
 package geoipdb_test
 
 import (
+	"net"
 	"testing"
 
 	"github.com/turbobytes/geoipdb"
 )
 
-var gip geoipdb.Handler
+var gh geoipdb.Handler
 
 func TestCreateHandler(t *testing.T) {
 	var err error
-	gip, err = geoipdb.New()
+	gh, err = geoipdb.NewHandler()
 	if err != nil {
 		t.Fatalf("geoipdb.New failed: %s", err)
 	}
+}
+
+func TestLookupAsn(t *testing.T) {
+	var err error
+	host := "www.turbobytes.com"
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		t.Fatalf("failed to lookup ip addresses for '%s': %s", host, err)
+	}
+	if len(ips) < 1 {
+		t.Fatalf("ip address lookup for '%s' returned empty", host)
+	}
+	ip := ips[0]
+	t.Logf("using ip %s (%s)", ip, host)
+	asn, asnName, err := gh.LookupAsn(ip.String())
+	if err != nil {
+		t.Fatalf("LookupAsn failed for ip %s: %s", ip, err)
+	}
+	t.Logf("%s (%v) is part of %s %s", host, ip, asn, asnName)
 }

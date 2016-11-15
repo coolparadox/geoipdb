@@ -41,7 +41,20 @@ type Handler struct {
 	gip *geoip.GeoIP
 }
 
-// New creates and returns a geoipdb handler.
-func New() (Handler, error) {
-	return Handler{}, fmt.Errorf("not yet implemented")
+// NewHandler creates and returns a geoipdb handler.
+func NewHandler() (Handler, error) {
+	gip, err := geoip.OpenType(geoip.GEOIP_ASNUM_EDITION)
+	if err != nil {
+		return Handler{}, fmt.Errorf("cannot open GeoIP database: %s", err)
+	}
+	return Handler{gip: gip}, nil
+}
+
+// LookupAsn answers the Autonomous System Number (ASN) of a valid IP address.
+//
+// Returns
+// an ASN identification (eg "AS15169")
+// and the corresponding network name (eg. "Google Inc.").
+func (h Handler) LookupAsn(ip string) (string, string, error) {
+	return "", "", fmt.Errorf("not yet implemented")
 }
