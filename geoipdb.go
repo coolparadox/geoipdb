@@ -51,12 +51,12 @@ func NewHandler() (Handler, error) {
 	return Handler{gi: gi}, nil
 }
 
-// GeoipLookup queries the libgeoip database for the ASN of a given ip address.
+// LibGeoipLookup queries the libgeoip database for the ASN of a given ip address.
 //
 // If found, returns
 // an ASN identification
 // and the corresponding description.
-func (h Handler) GeoipLookup(ip string) (string, string) {
+func (h Handler) LibGeoipLookup(ip string) (string, string) {
 	tmp, _ := h.gi.GetName(ip)
 	if tmp == "" {
 		return "", ""
@@ -75,7 +75,7 @@ func (h Handler) GeoipLookup(ip string) (string, string) {
 // an ASN identification
 // and the corresponding description.
 func (h Handler) LookupAsn(ip string) (string, string, error) {
-	asn, asnDescr := h.GeoipLookup(ip)
+	asn, asnDescr := h.LibGeoipLookup(ip)
 	if asn == "" {
 		return "", "", fmt.Errorf("unknown ASN for ip '%v'", ip)
 	}

@@ -58,8 +58,8 @@ func TestCreateHandler(t *testing.T) {
 	}
 }
 
-func TestGeoipLookup(t *testing.T) {
-	asn, asnDescr := gh.GeoipLookup(ip)
+func TestLibGeoipLookup(t *testing.T) {
+	asn, asnDescr := gh.LibGeoipLookup(ip)
 	if asn == "" {
 		t.Fatalf("ASN of ip '%s' is unknown by libgeoip", ip)
 	}
