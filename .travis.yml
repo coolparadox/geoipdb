@@ -1,0 +1,10 @@
+language: go
+
+go:
+  - 1.7
+  - tip
+
+install:
+  - go get github.com/turbobytes/geoipdb
+
+script: go test github.com/turbobytes/geoipdb
