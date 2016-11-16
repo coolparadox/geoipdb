@@ -35,7 +35,7 @@ import (
 const host = "www.turbobytes.com"
 
 var ip string
-var asn string
+var asnCymru string
 
 func TestInitIp(t *testing.T) {
 	ips, err := net.LookupIP(host)
@@ -64,6 +64,9 @@ func TestLibGeoipLookup(t *testing.T) {
 	if asn == "" {
 		t.Fatalf("ASN of ip '%s' is unknown by libgeoip", ip)
 	}
+	if asnCymru == "" {
+		asnCymru = asn
+	}
 	t.Logf("libgeoip results: %s %s", asn, asnDescr)
 }
 
@@ -72,16 +75,16 @@ func TestIpInfoLookup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("IpInfoLookup failed: %s", err)
 	}
+	if asnCymru == "" {
+		asnCymru = asn
+	}
 	t.Logf("ipinfo.io results: %s %s", asn, asnDescr)
 }
 
 func TestCymruDnsLookup(t *testing.T) {
-	//if asn == "" {
-		//t.Fatalf("missing asn")
-	//}
-	asnDescr, err := gh.CymruDnsLookup(asn)
+	asnDescr, err := gh.CymruDnsLookup(asnCymru)
 	if err != nil {
-		t.Fatalf("CymruDnsLookup failed: %s", err)
+		t.Fatalf("CymruDnsLookup failed for '%s': %s", asnCymru, err)
 	}
 	t.Logf("CymruDnsLookup results: %s", asnDescr)
 }
@@ -93,4 +96,3 @@ func TestLookupAsn(t *testing.T) {
 	}
 	t.Logf("LookupAsn results: %s %s", asn, asnDescr)
 }
-

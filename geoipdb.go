@@ -37,29 +37,41 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/abh/geoip"
+	"github.com/miekg/dns"
 )
 
-// reASN is a regexp for matching against an ASN.
-var reASN *regexp.Regexp
-
 func init() {
+	// reASN is a regexp for matching against an ASN.
 	reASN = regexp.MustCompilePOSIX("^AS[[:digit:]]+$")
+	// reDNSFilter is a regexp for matching content in DNS answers
+	// that is not part of ASN description.
+	reDNSFilter = regexp.MustCompilePOSIX(".*\\|")
 }
+
+// Pre-compiled regular expressions, see init() body source.
+var (
+	reASN       *regexp.Regexp
+	reDNSFilter *regexp.Regexp
+)
 
 // Handler is a handler to TurboBytes GeoIP helper functions.
 type Handler struct {
-	gi *geoip.GeoIP
+	geoip *geoip.GeoIP
+	cymru cymruClient
 }
 
 // NewHandler creates and returns a geoipdb handler.
 func NewHandler() (Handler, error) {
-	gi, err := geoip.OpenType(geoip.GEOIP_ASNUM_EDITION)
+	ge, err := geoip.OpenType(geoip.GEOIP_ASNUM_EDITION)
 	if err != nil {
 		return Handler{}, fmt.Errorf("cannot open GeoIP database: %s", err)
 	}
-	return Handler{gi: gi}, nil
+	cy := newCymruClient()
+	return Handler{geoip: ge, cymru: cy}, nil
 }
 
 // LibGeoipLookup queries the libgeoip database for the ASN of a given ip address.
@@ -68,7 +80,7 @@ func NewHandler() (Handler, error) {
 // an ASN identification
 // and the corresponding description.
 func (h Handler) LibGeoipLookup(ip string) (string, string) {
-	tmp, _ := h.gi.GetName(ip)
+	tmp, _ := h.geoip.GetName(ip)
 	tmp = strings.TrimSpace(tmp)
 	if tmp == "" {
 		return "", ""
@@ -149,5 +161,65 @@ func (h Handler) IpInfoLookup(ip string) (string, string, error) {
 //
 // Returns the ASN description.
 func (h Handler) CymruDnsLookup(asn string) (string, error) {
+	return h.cymru.lookup(asn)
+}
+
+// cymruClient can do DNS queries to Team Cymru's database
+// for retrieving ASN descriptions.
+type cymruClient struct {
+	sync.Mutex
+	dnsClient *dns.Client
+	dnsMsg    *dns.Msg
+	reFilter  *regexp.Regexp
+}
+
+// newCymruClient creates an initialized cymruClient.
+func newCymruClient() cymruClient {
+	c := new(dns.Client)
+	c.DialTimeout = time.Second * 2
+	c.ReadTimeout = time.Second * 2
+	c.WriteTimeout = time.Second * 2
+	m := new(dns.Msg)
+	m.Id = dns.Id()
+	m.RecursionDesired = true
+	m.Question = make([]dns.Question, 1)
+	m.Question[0] = dns.Question{
+		Qtype:  dns.TypeTXT,
+		Qclass: dns.ClassINET,
+	}
+	return cymruClient{
+		dnsClient: c,
+		dnsMsg:    m,
+		reFilter:  reDNSFilter.Copy(),
+	}
+}
+
+// lookup retrieves the description of a given ASN
+// by reaching Team Cymru's DNS database.
+//
+// Returns the ASN description
+func (cc cymruClient) lookup(asn string) (string, error) {
+	if asn == "" {
+		return "", fmt.Errorf("empty asn parameter")
+	}
+	if !reASN.MatchString(asn) {
+		log.Printf("warning: '%s' doesn't look a proper ASN identification.\n", asn)
+	}
+	cc.Lock()
+	defer cc.Unlock()
+	if cc.dnsClient == nil {
+		return "", fmt.Errorf("cymruClient not initialized")
+	}
+	cc.dnsMsg.Question[0].Name = asn + ".asn.cymru.com."
+	// Send query to Google public dns server
+	msg, _, err := cc.dnsClient.Exchange(cc.dnsMsg, "8.8.8.8:53")
+	if err != nil {
+		return "", fmt.Errorf("failed to query dns: %s", err)
+	}
+	for _, ans := range msg.Answer {
+		if t, ok := ans.(*dns.TXT); ok {
+			return strings.TrimSpace(cc.reFilter.ReplaceAllString(t.Txt[0], "")), nil
+		}
+	}
 	return "", fmt.Errorf("not yet implemented")
 }
