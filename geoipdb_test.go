@@ -35,6 +35,7 @@ import (
 const host = "www.turbobytes.com"
 
 var ip string
+var asn string
 
 func TestInitIp(t *testing.T) {
 	ips, err := net.LookupIP(host)
@@ -74,10 +75,22 @@ func TestIpInfoLookup(t *testing.T) {
 	t.Logf("ipinfo.io results: %s %s", asn, asnDescr)
 }
 
+func TestCymruDnsLookup(t *testing.T) {
+	//if asn == "" {
+		//t.Fatalf("missing asn")
+	//}
+	asnDescr, err := gh.CymruDnsLookup(asn)
+	if err != nil {
+		t.Fatalf("CymruDnsLookup failed: %s", err)
+	}
+	t.Logf("CymruDnsLookup results: %s", asnDescr)
+}
+
 func TestLookupAsn(t *testing.T) {
-	asn, asnName, err := gh.LookupAsn(ip)
+	asn, asnDescr, err := gh.LookupAsn(ip)
 	if err != nil {
 		t.Fatalf("LookupAsn failed for %s: %s", ip, err)
 	}
-	t.Logf("LookupAsn results: %s %s", asn, asnName)
+	t.Logf("LookupAsn results: %s %s", asn, asnDescr)
 }
+

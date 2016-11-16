@@ -133,7 +133,7 @@ func (h Handler) IpInfoLookup(ip string) (string, string, error) {
 		return "", "", fmt.Errorf("GET '%s' returned an empty answer", url)
 	}
 	answer := strings.SplitN(asnData, " ", 2)
-	// ipinfo.io returns errors as regular text (no outband error codes).
+	// ipinfo.io returns errors as regular text (no out-of-band error codes).
 	// Let's try to be smart and identify them.
 	if !reASN.MatchString(answer[0]) {
 		return "", "", fmt.Errorf("ipinfo.io lookup failed for '%s': %s", ip, asnData)
@@ -142,4 +142,12 @@ func (h Handler) IpInfoLookup(ip string) (string, string, error) {
 		return answer[0], "", nil
 	}
 	return answer[0], answer[1], nil
+}
+
+// CymruDnsLookup performs a query to Team Cymru's DNS service
+// for the description of a given ASN.
+//
+// Returns the ASN description.
+func (h Handler) CymruDnsLookup(asn string) (string, error) {
+	return "", fmt.Errorf("not yet implemented")
 }
