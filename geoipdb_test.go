@@ -26,27 +26,22 @@
 package geoipdb_test
 
 import (
-	"net"
 	"testing"
 
 	"github.com/turbobytes/geoipdb"
 )
 
-const host = "www.turbobytes.com"
+// Well known IP address for testing lookups
+const ip = "8.8.8.8"
 
-var ip string
-var asnCymru string
+// Results of some ASN lookups
+var (
+	asnLibGeo string
+	asnIpInfo string
+)
 
 func TestInitIp(t *testing.T) {
-	ips, err := net.LookupIP(host)
-	if err != nil {
-		t.Fatalf("failed to lookup ip addresses for '%s': %s", host, err)
-	}
-	if len(ips) < 1 {
-		t.Fatalf("ip address lookup for '%s' returned empty", host)
-	}
-	ip = ips[0].String()
-	t.Logf("using ip %s (%s) for tests", ip, host)
+	t.Logf("using ip '%s' for tests", ip)
 }
 
 var gh geoipdb.Handler
@@ -60,33 +55,39 @@ func TestCreateHandler(t *testing.T) {
 }
 
 func TestLibGeoipLookup(t *testing.T) {
-	asn, asnDescr := gh.LibGeoipLookup(ip)
-	if asn == "" {
+	var asnDescr string
+	asnLibGeo, asnDescr = gh.LibGeoipLookup(ip)
+	if asnLibGeo == "" {
 		t.Fatalf("ASN of ip '%s' is unknown by libgeoip", ip)
 	}
-	if asnCymru == "" {
-		asnCymru = asn
-	}
-	t.Logf("libgeoip results: %s %s", asn, asnDescr)
+	t.Logf("libgeoip results for %s: %s %s", ip, asnLibGeo, asnDescr)
 }
 
 func TestIpInfoLookup(t *testing.T) {
-	asn, asnDescr, err := gh.IpInfoLookup(ip)
+	var err error
+	var asnDescr string
+	asnIpInfo, asnDescr, err = gh.IpInfoLookup(ip)
 	if err != nil {
 		t.Fatalf("IpInfoLookup failed: %s", err)
 	}
-	if asnCymru == "" {
-		asnCymru = asn
-	}
-	t.Logf("ipinfo.io results: %s %s", asn, asnDescr)
+	t.Logf("ipinfo.io results for %s: %s %s", ip, asnIpInfo, asnDescr)
 }
 
 func TestCymruDnsLookup(t *testing.T) {
-	asnDescr, err := gh.CymruDnsLookup(asnCymru)
-	if err != nil {
-		t.Fatalf("CymruDnsLookup failed for '%s': %s", asnCymru, err)
+	if asnLibGeo != "" {
+		asnDescr, err := gh.CymruDnsLookup(asnLibGeo)
+		if err != nil {
+			t.Fatalf("CymruDnsLookup failed for '%s': %s", asnLibGeo, err)
+		}
+		t.Logf("CymruDnsLookup results for %s: %s", asnLibGeo, asnDescr)
 	}
-	t.Logf("CymruDnsLookup results: %s", asnDescr)
+	if asnIpInfo != "" && asnIpInfo != asnLibGeo {
+		asnDescr, err := gh.CymruDnsLookup(asnIpInfo)
+		if err != nil {
+			t.Fatalf("CymruDnsLookup failed for '%s': %s", asnIpInfo, err)
+		}
+		t.Logf("CymruDnsLookup results for %s: %s", asnIpInfo, asnDescr)
+	}
 }
 
 func TestLookupAsn(t *testing.T) {
