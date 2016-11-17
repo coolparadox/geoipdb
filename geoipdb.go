@@ -37,7 +37,6 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/abh/geoip"
@@ -184,9 +183,7 @@ func (h Handler) CymruDnsLookup(asn string) (string, error) {
 // cymruClient can do DNS queries to Team Cymru's database
 // for retrieving ASN descriptions.
 type cymruClient struct {
-	sync.Mutex
 	dnsClient *dns.Client
-	dnsMsg    *dns.Msg
 	reFilter  *regexp.Regexp
 }
 
@@ -196,17 +193,8 @@ func newCymruClient() cymruClient {
 	c.DialTimeout = time.Second * 2
 	c.ReadTimeout = time.Second * 2
 	c.WriteTimeout = time.Second * 2
-	m := new(dns.Msg)
-	m.Id = dns.Id()
-	m.RecursionDesired = true
-	m.Question = make([]dns.Question, 1)
-	m.Question[0] = dns.Question{
-		Qtype:  dns.TypeTXT,
-		Qclass: dns.ClassINET,
-	}
 	return cymruClient{
 		dnsClient: c,
-		dnsMsg:    m,
 		reFilter:  reDNSFilter.Copy(),
 	}
 }
@@ -222,14 +210,20 @@ func (cc cymruClient) lookup(asn string) (string, error) {
 	if !reASN.MatchString(asn) {
 		log.Printf("warning: '%s' doesn't look a proper ASN identification.\n", asn)
 	}
-	cc.Lock()
-	defer cc.Unlock()
 	if cc.dnsClient == nil {
 		return "", fmt.Errorf("cymruClient not initialized")
 	}
-	cc.dnsMsg.Question[0].Name = asn + ".asn.cymru.com."
+	msg := new(dns.Msg)
+	msg.Id = dns.Id()
+	msg.RecursionDesired = true
+	msg.Question = make([]dns.Question, 1)
+	msg.Question[0] = dns.Question{
+		Name: asn + ".asn.cymru.com.",
+		Qtype:  dns.TypeTXT,
+		Qclass: dns.ClassINET,
+	}
 	// Send query to Google public dns server
-	msg, _, err := cc.dnsClient.Exchange(cc.dnsMsg, "8.8.8.8:53")
+	msg, _, err := cc.dnsClient.Exchange(msg, "8.8.8.8:53")
 	if err != nil {
 		return "", fmt.Errorf("failed to query dns: %s", err)
 	}
