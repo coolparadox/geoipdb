@@ -70,18 +70,29 @@ var (
 
 // Handler is a handler to TurboBytes GeoIP helper functions.
 type Handler struct {
-	geoip *geoip.GeoIP
-	cymru cymruClient
+	geoip   *geoip.GeoIP
+	cymru   cymruClient
+	timeout time.Duration
 }
 
-// NewHandler creates and returns a geoipdb handler.
-func NewHandler() (Handler, error) {
+// NewHandler creates a handler
+// for accessing geoipdb features.
+//
+// Parameter timeout is honored by methods that access external services.
+// Pass zero to disable timeout.
+//
+// Returns a geoipdb handler.
+func NewHandler(timeout time.Duration) (Handler, error) {
 	ge, err := geoip.OpenType(geoip.GEOIP_ASNUM_EDITION)
 	if err != nil {
 		return Handler{}, fmt.Errorf("cannot open GeoIP database: %s", err)
 	}
-	cy := newCymruClient()
-	return Handler{geoip: ge, cymru: cy}, nil
+	cy := newCymruClient(timeout)
+	return Handler{
+		geoip:   ge,
+		cymru:   cy,
+		timeout: timeout,
+	}, nil
 }
 
 // LibGeoipLookup queries the libgeoip database for the ASN of a given ip address.
@@ -157,8 +168,11 @@ func (h Handler) LookupAsn(ip string) (string, string, error) {
 // an ASN identification
 // and the corresponding description.
 func (h Handler) IpInfoLookup(ip string) (string, string, error) {
+	client := &http.Client{
+		Timeout: h.timeout,
+	}
 	url := fmt.Sprintf("http://ipinfo.io/%s/org", ip)
-	resp, err := http.Get(url)
+	resp, err := client.Get(url)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to GET '%s': %s", url, err)
 	}
@@ -199,11 +213,9 @@ type cymruClient struct {
 }
 
 // newCymruClient creates an initialized cymruClient.
-func newCymruClient() cymruClient {
+func newCymruClient(timeout time.Duration) cymruClient {
 	c := new(dns.Client)
-	c.DialTimeout = time.Second * 2
-	c.ReadTimeout = time.Second * 2
-	c.WriteTimeout = time.Second * 2
+	c.Timeout = timeout
 	return cymruClient{
 		dnsClient: c,
 		reFilter:  reDNSFilter.Copy(),
@@ -229,7 +241,7 @@ func (cc cymruClient) lookup(asn string) (string, error) {
 	msg.RecursionDesired = true
 	msg.Question = make([]dns.Question, 1)
 	msg.Question[0] = dns.Question{
-		Name: asn + ".asn.cymru.com.",
+		Name:   asn + ".asn.cymru.com.",
 		Qtype:  dns.TypeTXT,
 		Qclass: dns.ClassINET,
 	}
