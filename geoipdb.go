@@ -26,8 +26,19 @@
 /*
 Package geoipdb is a library of GeoIP related helper functions for TurboBytes
 stack.
-*/
 
+Basics
+
+Get a geoipdb Handler with NewHandler, and use its lookup methods at will.
+
+Lookup of Autonomous System Numbers
+
+For looking up the autonomous system number of an IP address, use LookupAsn
+as it wraps more than one search method.
+
+If you want a specific service to be queried for ASN,
+see other Handler lookup methods.
+*/
 package geoipdb
 
 import (
@@ -75,7 +86,7 @@ func NewHandler() (Handler, error) {
 
 // LibGeoipLookup queries the libgeoip database for the ASN of a given ip address.
 //
-// If found, returns
+// Returns
 // an ASN identification
 // and the corresponding description.
 func (h Handler) LibGeoipLookup(ip string) (string, string) {
