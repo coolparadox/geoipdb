@@ -157,8 +157,11 @@ func (h Handler) LookupAsn(ip string) (string, string, error) {
 // an ASN identification
 // and the corresponding description.
 func (h Handler) IpInfoLookup(ip string) (string, string, error) {
+	client := &http.Client{
+		Timeout: time.Second * 5,
+	}
 	url := fmt.Sprintf("http://ipinfo.io/%s/org", ip)
-	resp, err := http.Get(url)
+	resp, err := client.Get(url)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to GET '%s': %s", url, err)
 	}
