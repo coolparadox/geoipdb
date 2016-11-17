@@ -27,6 +27,7 @@ package geoipdb_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/turbobytes/geoipdb"
@@ -55,6 +56,31 @@ func TestCreateHandler(t *testing.T) {
 	}
 }
 
+const (
+	asnGoogle = "AS15169"
+	asnLevel3 = "AS3356"
+)
+
+const (
+	subStrGoogle = "Google Inc"
+	subStrLevel3 = "Level 3 Communications"
+)
+
+func verifyAsn(t *testing.T, asn string, descr string) {
+	switch asn {
+	case asnGoogle:
+		if !strings.Contains(descr, subStrGoogle) {
+			t.Fatalf("%s description does not contain '%s': %s", asn, subStrGoogle, descr)
+		}
+	case asnLevel3:
+		if !strings.Contains(descr, subStrLevel3) {
+			t.Fatalf("%s description does not contain '%s': %s", asn, subStrLevel3, descr)
+		}
+	default:
+		t.Fatalf("unexpected ASN identification '%s'", asn)
+	}
+}
+
 func TestLibGeoipLookup(t *testing.T) {
 	var asnDescr string
 	asnLibGeo, asnDescr = gh.LibGeoipLookup(ip)
@@ -62,6 +88,7 @@ func TestLibGeoipLookup(t *testing.T) {
 		t.Fatalf("ASN of ip '%s' is unknown by libgeoip", ip)
 	}
 	t.Logf("libgeoip result for %s: %s %s", ip, asnLibGeo, asnDescr)
+	verifyAsn(t, asnLibGeo, asnDescr)
 }
 
 func TestIpInfoLookup(t *testing.T) {
@@ -72,6 +99,7 @@ func TestIpInfoLookup(t *testing.T) {
 		t.Fatalf("IpInfoLookup failed: %s", err)
 	}
 	t.Logf("ipinfo result for %s: %s %s", ip, asnIpInfo, asnDescr)
+	verifyAsn(t, asnIpInfo, asnDescr)
 }
 
 func TestCymruDnsLookup(t *testing.T) {
@@ -81,6 +109,7 @@ func TestCymruDnsLookup(t *testing.T) {
 			t.Fatalf("CymruDnsLookup failed for '%s': %s", asnLibGeo, err)
 		}
 		t.Logf("cymru result for %s: %s", asnLibGeo, asnDescr)
+		verifyAsn(t, asnLibGeo, asnDescr)
 	}
 	if asnIpInfo != "" && asnIpInfo != asnLibGeo {
 		asnDescr, err := gh.CymruDnsLookup(asnIpInfo)
@@ -88,6 +117,7 @@ func TestCymruDnsLookup(t *testing.T) {
 			t.Fatalf("CymruDnsLookup failed for '%s': %s", asnIpInfo, err)
 		}
 		t.Logf("cymru result for %s: %s", asnIpInfo, asnDescr)
+		verifyAsn(t, asnIpInfo, asnDescr)
 	}
 }
 
@@ -97,6 +127,7 @@ func TestLookupAsn(t *testing.T) {
 		t.Fatalf("LookupAsn failed for %s: %s", ip, err)
 	}
 	t.Logf("LookupAsn results: %s %s", asn, asnDescr)
+	verifyAsn(t, asn, asnDescr)
 }
 
 func Example_lookupAsn() {
