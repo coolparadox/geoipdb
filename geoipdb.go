@@ -37,29 +37,40 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/abh/geoip"
+	"github.com/miekg/dns"
 )
 
-// reASN is a regexp for matching against an ASN.
-var reASN *regexp.Regexp
-
 func init() {
+	// reASN is a regexp for matching against an ASN.
 	reASN = regexp.MustCompilePOSIX("^AS[[:digit:]]+$")
+	// reDNSFilter is a regexp for matching content in DNS answers
+	// that is not part of ASN description.
+	reDNSFilter = regexp.MustCompilePOSIX(".*\\|")
 }
+
+// Pre-compiled regular expressions, see init() body source.
+var (
+	reASN       *regexp.Regexp
+	reDNSFilter *regexp.Regexp
+)
 
 // Handler is a handler to TurboBytes GeoIP helper functions.
 type Handler struct {
-	gi *geoip.GeoIP
+	geoip *geoip.GeoIP
+	cymru cymruClient
 }
 
 // NewHandler creates and returns a geoipdb handler.
 func NewHandler() (Handler, error) {
-	gi, err := geoip.OpenType(geoip.GEOIP_ASNUM_EDITION)
+	ge, err := geoip.OpenType(geoip.GEOIP_ASNUM_EDITION)
 	if err != nil {
 		return Handler{}, fmt.Errorf("cannot open GeoIP database: %s", err)
 	}
-	return Handler{gi: gi}, nil
+	cy := newCymruClient()
+	return Handler{geoip: ge, cymru: cy}, nil
 }
 
 // LibGeoipLookup queries the libgeoip database for the ASN of a given ip address.
@@ -68,7 +79,7 @@ func NewHandler() (Handler, error) {
 // an ASN identification
 // and the corresponding description.
 func (h Handler) LibGeoipLookup(ip string) (string, string) {
-	tmp, _ := h.gi.GetName(ip)
+	tmp, _ := h.geoip.GetName(ip)
 	tmp = strings.TrimSpace(tmp)
 	if tmp == "" {
 		return "", ""
@@ -90,26 +101,43 @@ func (h Handler) LibGeoipLookup(ip string) (string, string) {
 // an ASN identification
 // and the corresponding description.
 func (h Handler) LookupAsn(ip string) (string, string, error) {
+	// Try libgeoip
 	asnGi, asnDescr := h.LibGeoipLookup(ip)
 	if asnGi != "" && asnDescr != "" {
+		// libgeoip returned an ASN and description.
 		return asnGi, asnDescr, nil
 	}
+	if asnGi == "" {
+		log.Printf("warning: libgeoip lookup failed for ip '%s'\n", ip)
+	}
+	// Try ipinfo.io
 	asnDescr = ""
 	asnIp, asnDescr, errIp := h.IpInfoLookup(ip)
 	if errIp == nil {
 		if asnIp != "" && asnDescr != "" {
+			// ipinfo.io returned an ASN and description.
 			return asnIp, asnDescr, nil
 		}
 	} else {
-		log.Println(errIp)
+		log.Printf("warning: ipinfo lookup failed for ip '%s': %s\n", ip, errIp)
 	}
+	var asn string
 	if errIp == nil && asnIp != "" {
-		return asnIp, "", nil
+		asn = asnIp
+	} else if asnGi != "" {
+		asn = asnGi
+	} else {
+		// Cannot find an ASN. Give up.
+		return "", "", fmt.Errorf("unknown ASN for ip '%v'", ip)
 	}
-	if asnGi != "" {
-		return asnGi, "", nil
+	// We found an ASN, but no description for it.
+	// Try getting one from cymru's dns service.
+	asnDescr, err := h.CymruDnsLookup(asn)
+	if err != nil {
+		log.Printf("warning: cymru lookup failed for asn '%s': %s\n", asn, err)
+		return asn, "", nil
 	}
-	return "", "", fmt.Errorf("unknown ASN for ip '%v'", ip)
+	return asn, asnDescr, nil
 }
 
 // IpInfoLookup queries ipinfo.io for the ASN of a given ip address.
@@ -133,7 +161,7 @@ func (h Handler) IpInfoLookup(ip string) (string, string, error) {
 		return "", "", fmt.Errorf("GET '%s' returned an empty answer", url)
 	}
 	answer := strings.SplitN(asnData, " ", 2)
-	// ipinfo.io returns errors as regular text (no outband error codes).
+	// ipinfo.io returns errors as regular text (no out-of-band error codes).
 	// Let's try to be smart and identify them.
 	if !reASN.MatchString(answer[0]) {
 		return "", "", fmt.Errorf("ipinfo.io lookup failed for '%s': %s", ip, asnData)
@@ -142,4 +170,67 @@ func (h Handler) IpInfoLookup(ip string) (string, string, error) {
 		return answer[0], "", nil
 	}
 	return answer[0], answer[1], nil
+}
+
+// CymruDnsLookup performs a query to Team Cymru's DNS service
+// for the description of a given ASN.
+//
+// Returns the ASN description.
+func (h Handler) CymruDnsLookup(asn string) (string, error) {
+	return h.cymru.lookup(asn)
+}
+
+// cymruClient can do DNS queries to Team Cymru's database
+// for retrieving ASN descriptions.
+type cymruClient struct {
+	dnsClient *dns.Client
+	reFilter  *regexp.Regexp
+}
+
+// newCymruClient creates an initialized cymruClient.
+func newCymruClient() cymruClient {
+	c := new(dns.Client)
+	c.DialTimeout = time.Second * 2
+	c.ReadTimeout = time.Second * 2
+	c.WriteTimeout = time.Second * 2
+	return cymruClient{
+		dnsClient: c,
+		reFilter:  reDNSFilter.Copy(),
+	}
+}
+
+// lookup retrieves the description of a given ASN
+// by reaching Team Cymru's DNS database.
+//
+// Returns the ASN description.
+func (cc cymruClient) lookup(asn string) (string, error) {
+	if asn == "" {
+		return "", fmt.Errorf("empty asn parameter")
+	}
+	if !reASN.MatchString(asn) {
+		log.Printf("warning: '%s' doesn't look a proper ASN identification.\n", asn)
+	}
+	if cc.dnsClient == nil {
+		return "", fmt.Errorf("cymruClient not initialized")
+	}
+	msg := new(dns.Msg)
+	msg.Id = dns.Id()
+	msg.RecursionDesired = true
+	msg.Question = make([]dns.Question, 1)
+	msg.Question[0] = dns.Question{
+		Name: asn + ".asn.cymru.com.",
+		Qtype:  dns.TypeTXT,
+		Qclass: dns.ClassINET,
+	}
+	// Send query to Google public dns server
+	msg, _, err := cc.dnsClient.Exchange(msg, "8.8.8.8:53")
+	if err != nil {
+		return "", fmt.Errorf("failed to query dns: %s", err)
+	}
+	for _, ans := range msg.Answer {
+		if t, ok := ans.(*dns.TXT); ok {
+			return strings.TrimSpace(cc.reFilter.ReplaceAllString(t.Txt[0], "")), nil
+		}
+	}
+	return "", fmt.Errorf("not yet implemented")
 }
