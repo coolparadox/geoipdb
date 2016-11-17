@@ -29,7 +29,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/turbobytes/geoipdb"
 )
@@ -51,7 +50,7 @@ var gh geoipdb.Handler
 
 func TestCreateHandler(t *testing.T) {
 	var err error
-	gh, err = geoipdb.NewHandler(time.Second * 5)
+	gh, err = geoipdb.NewHandler(0)
 	if err != nil {
 		t.Fatalf("geoipdb.New failed: %s", err)
 	}
@@ -134,7 +133,7 @@ func TestLookupAsn(t *testing.T) {
 func Example_lookupAsn() {
 
 	ip := "8.8.8.8"
-	gh, err := geoipdb.NewHandler(time.Second * 5)
+	gh, err := geoipdb.NewHandler(0)
 	if err != nil {
 		panic(err)
 	}
