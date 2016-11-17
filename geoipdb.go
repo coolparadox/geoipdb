@@ -122,10 +122,10 @@ func (h Handler) LookupAsn(ip string) (string, string, error) {
 		log.Printf("warning: ipinfo lookup failed for ip '%s': %s\n", ip, errIp)
 	}
 	var asn string
-	if errIp == nil && asnIp != "" {
-		asn = asnIp
-	} else if asnGi != "" {
+	if asnGi != "" {
 		asn = asnGi
+	} else if errIp == nil && asnIp != "" {
+		asn = asnIp
 	} else {
 		// Cannot find an ASN. Give up.
 		return "", "", fmt.Errorf("unknown ASN for ip '%v'", ip)
