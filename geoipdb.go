@@ -78,25 +78,20 @@ type Handler struct {
 // NewHandler creates a handler
 // for accessing geoipdb features.
 //
-// Parameter timeoutMS (in milliseconds) is honored by methods
-// that access external services.
-// Pass zero to use the library default (5 seconds).
+// Parameter timeout is honored by methods that access external services.
+// Pass zero to disable timeout.
 //
 // Returns a geoipdb handler.
-func NewHandler(timeoutMS int64) (Handler, error) {
-	myTimeout := time.Second * 5
-	if timeoutMS > 0 {
-		myTimeout = time.Millisecond * time.Duration(timeoutMS)
-	}
+func NewHandler(timeout time.Duration) (Handler, error) {
 	ge, err := geoip.OpenType(geoip.GEOIP_ASNUM_EDITION)
 	if err != nil {
 		return Handler{}, fmt.Errorf("cannot open GeoIP database: %s", err)
 	}
-	cy := newCymruClient(myTimeout)
+	cy := newCymruClient(timeout)
 	return Handler{
 		geoip:   ge,
 		cymru:   cy,
-		timeout: myTimeout,
+		timeout: timeout,
 	}, nil
 }
 
