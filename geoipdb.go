@@ -52,6 +52,7 @@ import (
 
 	"github.com/abh/geoip"
 	"github.com/miekg/dns"
+	"gopkg.in/mgo.v2"
 )
 
 func init() {
@@ -78,11 +79,17 @@ type Handler struct {
 // NewHandler creates a handler
 // for accessing geoipdb features.
 //
+// Parameter overrides is used to query local overrides of ASN descriptions.
+// Pass nil to disable.
+//
 // Parameter timeout is honored by methods that access external services.
 // Pass zero to disable timeout.
 //
 // Returns a geoipdb handler.
-func NewHandler(timeout time.Duration) (Handler, error) {
+func NewHandler(overrides *mgo.Collection, timeout time.Duration) (Handler, error) {
+	if overrides != nil {
+		return Handler{}, fmt.Errorf("local override is not yet implemented")
+	}
 	ge, err := geoip.OpenType(geoip.GEOIP_ASNUM_EDITION)
 	if err != nil {
 		return Handler{}, fmt.Errorf("cannot open GeoIP database: %s", err)
