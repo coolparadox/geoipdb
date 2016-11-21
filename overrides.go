@@ -26,25 +26,44 @@
 package geoipdb
 
 import (
+	"errors"
 	"fmt"
 )
+
+// OverridesNilCollectionError is returned by Overrides<...> methods
+// when Handler was created without an overrides collection
+// (see NewHandler).
+var OverridesNilCollectionError = errors.New("nil overrides collection")
+
+// OverridesAsnNotFoundError is returned by OverridesLookup
+// when there is no override defined.
+var OverridesAsnNotFoundError = errors.New("ASN not found")
 
 // OverridesLookup queries the database of local overrides
 // for the description of a given ASN.
 //
 // Returns the ASN description.
 func (h Handler) OverridesLookup(asn string) (string, error) {
+	if h.overrides == nil {
+		return "", OverridesNilCollectionError
+	}
 	return "", fmt.Errorf("not yet implemented")
 }
 
 // OverridesSet stores a user defined description for a given ASN
 // in the database of local overrides.
 func (h Handler) OverridesSet(asn string, descr string) error {
+	if h.overrides == nil {
+		return OverridesNilCollectionError
+	}
 	return fmt.Errorf("not yet implemented")
 }
 
 // OverridesRemove removes the description for a given ASN
 // from the database of local overrides.
 func (h Handler) OverridesRemove(asn string) error {
+	if h.overrides == nil {
+		return OverridesNilCollectionError
+	}
 	return fmt.Errorf("not yet implemented")
 }
