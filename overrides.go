@@ -28,7 +28,28 @@ package geoipdb
 import (
 	"errors"
 	"fmt"
+
+	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
+
+// asnOverride is what is stored in the overrides collection.
+type asnOverride struct {
+	asn  string
+	name string
+}
+
+// SetBSON implements bson.Setter by asnOverride.
+func (override *asnOverride) SetBSON(raw bson.Raw) error {
+	data := make(map[string]string)
+	err := raw.Unmarshal(data)
+	if err != nil {
+		return err
+	}
+	override.asn = data["_id"]
+	override.name = data["name"]
+	return nil
+}
 
 // OverridesNilCollectionError is returned by Overrides<...> methods
 // when Handler was created without an overrides collection
@@ -47,7 +68,15 @@ func (h Handler) OverridesLookup(asn string) (string, error) {
 	if h.overrides == nil {
 		return "", OverridesNilCollectionError
 	}
-	return "", fmt.Errorf("not yet implemented")
+	var override asnOverride
+	err := h.overrides.FindId(asn).One(&override)
+	if err == mgo.ErrNotFound {
+		return "", OverridesAsnNotFoundError
+	}
+	if err != nil {
+		return "", fmt.Errorf("cannot lookup override: %s", err)
+	}
+	return override.name, nil
 }
 
 // OverridesSet stores a user defined description for a given ASN
@@ -56,7 +85,11 @@ func (h Handler) OverridesSet(asn string, descr string) error {
 	if h.overrides == nil {
 		return OverridesNilCollectionError
 	}
-	return fmt.Errorf("not yet implemented")
+	_, err := h.overrides.UpsertId(asn, bson.M{"$set": bson.M{"name": descr}})
+	if err != nil {
+		return fmt.Errorf("cannot set override: %s", err)
+	}
+	return nil
 }
 
 // OverridesRemove removes the description for a given ASN
@@ -65,5 +98,12 @@ func (h Handler) OverridesRemove(asn string) error {
 	if h.overrides == nil {
 		return OverridesNilCollectionError
 	}
-	return fmt.Errorf("not yet implemented")
+	err := h.overrides.RemoveId(asn)
+	if err == mgo.ErrNotFound {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("cannot remove override: %s", err)
+	}
+	return nil
 }

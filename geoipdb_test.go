@@ -191,7 +191,7 @@ func TestOverridesLookupUnknownOverride(t *testing.T) {
 	}
 }
 
-const overridenDescr = "overriden ASN"
+const overridenDescr = "TurboBytes geoipdb rules!!"
 
 func TestOverridesSet(t *testing.T) {
 	err := gh.OverridesSet(asnLookupAsn, overridenDescr)
