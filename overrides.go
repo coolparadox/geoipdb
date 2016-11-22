@@ -33,22 +33,10 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-// asnOverride is what is stored in the overrides collection.
-type asnOverride struct {
-	asn  string
-	name string
-}
-
-// SetBSON implements bson.Setter by asnOverride.
-func (override *asnOverride) SetBSON(raw bson.Raw) error {
-	data := make(map[string]string)
-	err := raw.Unmarshal(data)
-	if err != nil {
-		return err
-	}
-	override.asn = data["_id"]
-	override.name = data["name"]
-	return nil
+// AsnOverride is what is stored in the overrides collection.
+type AsnOverride struct {
+	Asn  string `bson:"_id"`
+	Name string `bson:"name"`
 }
 
 // OverridesNilCollectionError is returned by Overrides<...> methods
@@ -68,7 +56,7 @@ func (h Handler) OverridesLookup(asn string) (string, error) {
 	if h.overrides == nil {
 		return "", OverridesNilCollectionError
 	}
-	var override asnOverride
+	var override AsnOverride
 	err := h.overrides.FindId(asn).One(&override)
 	if err == mgo.ErrNotFound {
 		return "", OverridesAsnNotFoundError
@@ -76,7 +64,7 @@ func (h Handler) OverridesLookup(asn string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("cannot lookup override: %s", err)
 	}
-	return override.name, nil
+	return override.Name, nil
 }
 
 // OverridesSet stores a user defined description for a given ASN
