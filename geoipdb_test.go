@@ -210,6 +210,16 @@ func TestOverridesLookupKnownOverride(t *testing.T) {
 	}
 }
 
+func TestLookupAsnWithOverride(t *testing.T) {
+	_, descr, err := gh.LookupAsn(ip)
+	if err != nil {
+		t.Fatalf("LookupAsn failed for %s: %s", ip, err)
+	}
+	if descr != overridenDescr {
+		t.Fatalf("overriden description mismatch: expected '%s', received '%s'", overridenDescr, descr)
+	}
+}
+
 func TestOverridesRemove(t *testing.T) {
 	err := gh.OverridesRemove(asnLookupAsn)
 	if err != nil {
