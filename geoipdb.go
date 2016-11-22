@@ -52,6 +52,7 @@ import (
 
 	"github.com/abh/geoip"
 	"github.com/miekg/dns"
+	"gopkg.in/mgo.v2"
 )
 
 func init() {
@@ -70,28 +71,34 @@ var (
 
 // Handler is a handler to TurboBytes GeoIP helper functions.
 type Handler struct {
-	geoip   *geoip.GeoIP
-	cymru   cymruClient
-	timeout time.Duration
+	geoip     *geoip.GeoIP
+	cymru     cymruClient
+	timeout   time.Duration
+	overrides *mgo.Collection
 }
 
 // NewHandler creates a handler
 // for accessing geoipdb features.
 //
+// Parameter overrides, if not nil,
+// is used to access a collection of overrides of ASN descriptions.
+// (See Overrides<...> methods.)
+//
 // Parameter timeout is honored by methods that access external services.
 // Pass zero to disable timeout.
 //
 // Returns a geoipdb handler.
-func NewHandler(timeout time.Duration) (Handler, error) {
+func NewHandler(overrides *mgo.Collection, timeout time.Duration) (Handler, error) {
 	ge, err := geoip.OpenType(geoip.GEOIP_ASNUM_EDITION)
 	if err != nil {
 		return Handler{}, fmt.Errorf("cannot open GeoIP database: %s", err)
 	}
 	cy := newCymruClient(timeout)
 	return Handler{
-		geoip:   ge,
-		cymru:   cy,
-		timeout: timeout,
+		geoip:     ge,
+		cymru:     cy,
+		timeout:   timeout,
+		overrides: overrides,
 	}, nil
 }
 
@@ -118,6 +125,8 @@ func (h Handler) LibGeoipLookup(ip string) (string, string) {
 //
 // This is the preferred ASN lookup function to be used by clients,
 // as it queries several resources for finding proper answers.
+// Particularly, the overrides collection (see NewHandler)
+// takes precedence for querying ASN descriptions.
 //
 // Returns
 // an ASN identification
@@ -127,7 +136,7 @@ func (h Handler) LookupAsn(ip string) (string, string, error) {
 	asnGi, asnDescr := h.LibGeoipLookup(ip)
 	if asnGi != "" && asnDescr != "" {
 		// libgeoip returned an ASN and description.
-		return asnGi, asnDescr, nil
+		return asnGi, h.getOverridenDescr(asnGi, asnDescr), nil
 	}
 	if asnGi == "" {
 		log.Printf("warning: libgeoip lookup failed for ip '%s'\n", ip)
@@ -138,7 +147,7 @@ func (h Handler) LookupAsn(ip string) (string, string, error) {
 	if errIp == nil {
 		if asnIp != "" && asnDescr != "" {
 			// ipinfo.io returned an ASN and description.
-			return asnIp, asnDescr, nil
+			return asnIp, h.getOverridenDescr(asnIp, asnDescr), nil
 		}
 	} else {
 		log.Printf("warning: ipinfo lookup failed for ip '%s': %s\n", ip, errIp)
@@ -157,9 +166,9 @@ func (h Handler) LookupAsn(ip string) (string, string, error) {
 	asnDescr, err := h.CymruDnsLookup(asn)
 	if err != nil {
 		log.Printf("warning: cymru lookup failed for asn '%s': %s\n", asn, err)
-		return asn, "", nil
+		return asn, h.getOverridenDescr(asn, ""), nil
 	}
-	return asn, asnDescr, nil
+	return asn, h.getOverridenDescr(asn, asnDescr), nil
 }
 
 // IpInfoLookup queries ipinfo.io for the ASN of a given ip address.
@@ -256,4 +265,18 @@ func (cc cymruClient) lookup(asn string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("not yet implemented")
+}
+
+// getOverridenDescr answers the ASN description
+// taken from the override collection, if found.
+// Otherwise, answers the fallback parameter.
+func (h Handler) getOverridenDescr(asn string, fallback string) string {
+	descr, err := h.OverridesLookup(asn)
+	if err != nil {
+		if err != OverridesNilCollectionError && err != OverridesAsnNotFoundError {
+			log.Printf("warning: %s\n", err)
+		}
+		return fallback
+	}
+	return descr
 }

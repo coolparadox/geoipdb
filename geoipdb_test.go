@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/turbobytes/geoipdb"
+	"gopkg.in/mgo.v2"
 )
 
 // Well known IP address for testing lookups
@@ -39,8 +40,9 @@ const ip = "8.8.8.8"
 
 // Results of some ASN lookups
 var (
-	asnLibGeo string
-	asnIpInfo string
+	asnLibGeo    string
+	asnIpInfo    string
+	asnLookupAsn string
 )
 
 func TestInitIp(t *testing.T) {
@@ -49,9 +51,9 @@ func TestInitIp(t *testing.T) {
 
 var gh geoipdb.Handler
 
-func TestCreateHandler(t *testing.T) {
+func TestNewHandler(t *testing.T) {
 	var err error
-	gh, err = geoipdb.NewHandler(time.Second * 5)
+	gh, err = geoipdb.NewHandler(nil, time.Second*5)
 	if err != nil {
 		t.Fatalf("geoipdb.New failed: %s", err)
 	}
@@ -123,18 +125,19 @@ func TestCymruDnsLookup(t *testing.T) {
 }
 
 func TestLookupAsn(t *testing.T) {
-	asn, asnDescr, err := gh.LookupAsn(ip)
+	var err error
+	var asnDescr string
+	asnLookupAsn, asnDescr, err = gh.LookupAsn(ip)
 	if err != nil {
 		t.Fatalf("LookupAsn failed for %s: %s", ip, err)
 	}
-	t.Logf("LookupAsn results: %s %s", asn, asnDescr)
-	verifyAsn(t, asn, asnDescr)
+	t.Logf("LookupAsn results: %s %s", asnLookupAsn, asnDescr)
+	verifyAsn(t, asnLookupAsn, asnDescr)
 }
 
 func Example_lookupAsn() {
-
 	ip := "8.8.8.8"
-	gh, err := geoipdb.NewHandler(time.Second * 5)
+	gh, err := geoipdb.NewHandler(nil, time.Second*5)
 	if err != nil {
 		panic(err)
 	}
@@ -143,8 +146,84 @@ func Example_lookupAsn() {
 		panic(err)
 	}
 	fmt.Printf("ASN for %s: %s (%s)\n", ip, asn, descr)
-
 	// Output:
 	// ASN for 8.8.8.8: AS15169 (Google Inc.)
+}
 
+func TestOverridesLookupNilOverrides(t *testing.T) {
+	_, err := gh.OverridesLookup(asnLookupAsn)
+	if err != geoipdb.OverridesNilCollectionError {
+		t.Fatalf("OverridesLookup returned unexpected error: %s", err)
+	}
+}
+
+var (
+	mgS *mgo.Session
+	mgD *mgo.Database
+	mgC *mgo.Collection
+)
+
+const (
+	mgUrl        = "127.0.0.1"
+	mgDatabase   = "geoipdb_test"
+	mgCollection = "dnsdist"
+)
+
+func TestNewHandlerWithOverrides(t *testing.T) {
+	var err error
+	mgS, err = mgo.Dial(mgUrl)
+	if err != nil {
+		t.Fatalf("cannot dial to mongodb in '%s': %s", mgUrl, err)
+	}
+	mgD = mgS.DB(mgDatabase)
+	mgC = mgD.C(mgCollection)
+	mgC.DropCollection()
+	gh, err = geoipdb.NewHandler(mgC, time.Second*5)
+	if err != nil {
+		t.Fatalf("cannot create geoipdb handler: %s", err)
+	}
+}
+
+func TestOverridesLookupUnknownOverride(t *testing.T) {
+	_, err := gh.OverridesLookup(asnLookupAsn)
+	if err != geoipdb.OverridesAsnNotFoundError {
+		t.Fatalf("OverridesLookup returned unexpected error: %s", err)
+	}
+}
+
+const overridenDescr = "TurboBytes geoipdb rules!!"
+
+func TestOverridesSet(t *testing.T) {
+	err := gh.OverridesSet(asnLookupAsn, overridenDescr)
+	if err != nil {
+		t.Fatalf("OverridesSet failed: %s", err)
+	}
+}
+
+func TestOverridesLookupKnownOverride(t *testing.T) {
+	descr, err := gh.OverridesLookup(asnLookupAsn)
+	if err != nil {
+		t.Fatalf("OverridesLookup failed: %s", err)
+	}
+	if descr != overridenDescr {
+		t.Fatalf("overriden description mismatch: expected '%s', received '%s'", overridenDescr, descr)
+	}
+}
+
+func TestLookupAsnWithOverride(t *testing.T) {
+	_, descr, err := gh.LookupAsn(ip)
+	if err != nil {
+		t.Fatalf("LookupAsn failed for %s: %s", ip, err)
+	}
+	if descr != overridenDescr {
+		t.Fatalf("overriden description mismatch: expected '%s', received '%s'", overridenDescr, descr)
+	}
+}
+
+func TestOverridesRemove(t *testing.T) {
+	err := gh.OverridesRemove(asnLookupAsn)
+	if err != nil {
+		t.Fatalf("OverridesRemove failed: %s", err)
+	}
+	TestOverridesLookupUnknownOverride(t)
 }
