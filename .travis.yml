@@ -17,4 +17,7 @@ before_install:
 install:
   - go get github.com/turbobytes/geoipdb
 
+services:
+  - mongodb
+
 script: go test github.com/turbobytes/geoipdb
