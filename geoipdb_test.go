@@ -216,10 +216,10 @@ func TestOverridesListNotEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OverridesList failed: %s", err)
 	}
-	expected := make(map[string]string, 1)
-	expected[asnLookupAsn] = overridenDescr
+	t.Logf("overrides list: %v", overrides)
+	expected := []geoipdb.AsnOverride{{Asn: asnLookupAsn, Name: overridenDescr}}
 	if !reflect.DeepEqual(overrides, expected) {
-		t.Fatalf("unexpected return value: expected '%v', got '%v'", expected, overrides)
+		t.Fatalf("unexpected return value, expected: %v", expected)
 	}
 }
 
@@ -251,4 +251,5 @@ func TestOverridesRemove(t *testing.T) {
 	}
 	TestOverridesLookupUnknownOverride(t)
 	TestLookupAsn(t)
+	TestOverridesListEmpty(t)
 }
