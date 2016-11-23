@@ -27,6 +27,7 @@ package geoipdb_test
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -184,6 +185,16 @@ func TestNewHandlerWithOverrides(t *testing.T) {
 	}
 }
 
+func TestOverridesListEmpty(t *testing.T) {
+	overrides, err := gh.OverridesList()
+	if err != nil {
+		t.Fatalf("OverridesList failed: %s", err)
+	}
+	if len(overrides) != 0 {
+		t.Fatalf("expected an empty map, got: %v", overrides)
+	}
+}
+
 func TestOverridesLookupUnknownOverride(t *testing.T) {
 	_, err := gh.OverridesLookup(asnLookupAsn)
 	if err != geoipdb.OverridesAsnNotFoundError {
@@ -197,6 +208,18 @@ func TestOverridesAdd(t *testing.T) {
 	err := gh.OverridesAdd(asnLookupAsn, overridenDescr)
 	if err != nil {
 		t.Fatalf("OverridesAdd failed: %s", err)
+	}
+}
+
+func TestOverridesListNotEmpty(t *testing.T) {
+	overrides, err := gh.OverridesList()
+	if err != nil {
+		t.Fatalf("OverridesList failed: %s", err)
+	}
+	expected := make(map[string]string, 1)
+	expected[asnLookupAsn] = overridenDescr
+	if !reflect.DeepEqual(overrides, expected) {
+		t.Fatalf("unexpected return value: expected '%v', got '%v'", expected, overrides)
 	}
 }
 

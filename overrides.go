@@ -96,3 +96,10 @@ func (h Handler) OverridesRemove(asn string) error {
 	}
 	return nil
 }
+
+// OverridesList answers all ASN description overrides.
+//
+// Returns a map from ASNs to descriptions.
+func (h Handler) OverridesList() (map[string]string, error) {
+	return nil, fmt.Errorf("not yet implemented")
+}
