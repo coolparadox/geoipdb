@@ -165,8 +165,8 @@ var (
 
 const (
 	mgUrl        = "127.0.0.1"
-	mgDatabase   = "geoipdb_test"
-	mgCollection = "dnsdist"
+	mgDatabase   = "dnsdist"
+	mgCollection = "geoipdb_test"
 )
 
 func TestNewHandlerWithOverrides(t *testing.T) {
@@ -215,8 +215,9 @@ func TestLookupAsnWithOverride(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LookupAsn failed for %s: %s", ip, err)
 	}
+	t.Logf("LookupAsn results: %s %s", asnLookupAsn, descr)
 	if descr != overridenDescr {
-		t.Fatalf("overriden description mismatch: expected '%s', received '%s'", overridenDescr, descr)
+		t.Fatalf("overriden description mismatch: expected '%s'", descr)
 	}
 }
 
@@ -226,4 +227,5 @@ func TestOverridesRemove(t *testing.T) {
 		t.Fatalf("OverridesRemove failed: %s", err)
 	}
 	TestOverridesLookupUnknownOverride(t)
+	TestLookupAsn(t)
 }
