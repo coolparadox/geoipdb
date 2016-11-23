@@ -51,7 +51,8 @@ var OverridesAsnNotFoundError = errors.New("ASN not found")
 // OverridesLookup queries the database of local overrides
 // for the description of a given ASN.
 //
-// Returns the ASN description.
+// Returns the ASN description,
+// or OverridesAsnNotFoundError if there is no override for the ASN.
 func (h Handler) OverridesLookup(asn string) (string, error) {
 	if h.overrides == nil {
 		return "", OverridesNilCollectionError
@@ -67,9 +68,9 @@ func (h Handler) OverridesLookup(asn string) (string, error) {
 	return override.Name, nil
 }
 
-// OverridesSet stores a user defined description for a given ASN
+// OverridesAdd stores or updates a user defined description for a given ASN
 // in the database of local overrides.
-func (h Handler) OverridesSet(asn string, descr string) error {
+func (h Handler) OverridesAdd(asn string, descr string) error {
 	if h.overrides == nil {
 		return OverridesNilCollectionError
 	}
@@ -80,8 +81,8 @@ func (h Handler) OverridesSet(asn string, descr string) error {
 	return nil
 }
 
-// OverridesRemove removes the description for a given ASN
-// from the database of local overrides.
+// OverridesRemove makes sure the description for a given ASN
+// is removed from the database of local overrides.
 func (h Handler) OverridesRemove(asn string) error {
 	if h.overrides == nil {
 		return OverridesNilCollectionError
