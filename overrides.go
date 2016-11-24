@@ -35,8 +35,8 @@ import (
 
 // AsnOverride is what is stored in the overrides collection.
 type AsnOverride struct {
-	Asn  string `bson:"_id"`
-	Name string `bson:"name"`
+	Asn  string `bson:"_id" json:"asn"`
+	Name string `bson:"name" json:"name"`
 }
 
 // OverridesNilCollectionError is returned by Overrides<...> methods
