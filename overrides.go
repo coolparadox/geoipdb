@@ -48,6 +48,10 @@ var OverridesNilCollectionError = errors.New("nil overrides collection")
 // when there is no override defined.
 var OverridesAsnNotFoundError = errors.New("ASN not found")
 
+// OverridesMalformedAsnError is returned by OverridesSet
+// when parameter asn does not conform to an ASN identification.
+var OverridesMalformedAsnError = errors.New("malformed ASN")
+
 // OverridesLookup queries the database of local overrides
 // for the description of a given ASN.
 //
@@ -73,6 +77,9 @@ func (h Handler) OverridesLookup(asn string) (string, error) {
 func (h Handler) OverridesSet(asn string, descr string) error {
 	if h.overrides == nil {
 		return OverridesNilCollectionError
+	}
+	if !reASN.MatchString(asn) {
+		return OverridesMalformedAsnError
 	}
 	_, err := h.overrides.UpsertId(asn, bson.M{"$set": bson.M{"name": descr}})
 	if err != nil {

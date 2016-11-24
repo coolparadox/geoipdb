@@ -205,6 +205,13 @@ func TestOverridesLookupUnknownOverride(t *testing.T) {
 	}
 }
 
+func TestOverridesSetMalformedAsn(t *testing.T) {
+	err := gh.OverridesSet("qwerty", "l33t")
+	if err != geoipdb.OverridesMalformedAsnError {
+		t.Fatalf("OverridesSet returned unexpected error: %s", err)
+	}
+}
+
 const overridenDescr = "TurboBytes geoipdb rules!!"
 
 func TestOverridesSet(t *testing.T) {
