@@ -68,9 +68,9 @@ func (h Handler) OverridesLookup(asn string) (string, error) {
 	return override.Name, nil
 }
 
-// OverridesAdd stores or updates a user defined description for a given ASN
+// OverridesSet stores or updates a user defined description for a given ASN
 // in the database of local overrides.
-func (h Handler) OverridesAdd(asn string, descr string) error {
+func (h Handler) OverridesSet(asn string, descr string) error {
 	if h.overrides == nil {
 		return OverridesNilCollectionError
 	}

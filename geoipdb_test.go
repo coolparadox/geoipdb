@@ -207,10 +207,10 @@ func TestOverridesLookupUnknownOverride(t *testing.T) {
 
 const overridenDescr = "TurboBytes geoipdb rules!!"
 
-func TestOverridesAdd(t *testing.T) {
-	err := gh.OverridesAdd(asnLookupAsn, overridenDescr)
+func TestOverridesSet(t *testing.T) {
+	err := gh.OverridesSet(asnLookupAsn, overridenDescr)
 	if err != nil {
-		t.Fatalf("OverridesAdd failed: %s", err)
+		t.Fatalf("OverridesSet failed: %s", err)
 	}
 }
 
