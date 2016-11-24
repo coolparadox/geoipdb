@@ -190,8 +190,11 @@ func TestOverridesListEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OverridesList failed: %s", err)
 	}
+	if overrides == nil {
+		t.Fatalf("expected an empty list, got nil")
+	}
 	if len(overrides) != 0 {
-		t.Fatalf("expected an empty map, got: %v", overrides)
+		t.Fatalf("expected an empty list, got: %v", overrides)
 	}
 }
 

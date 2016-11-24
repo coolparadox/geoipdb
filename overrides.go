@@ -102,10 +102,13 @@ func (h Handler) OverridesList() ([]AsnOverride, error) {
 	if h.overrides == nil {
 		return nil, OverridesNilCollectionError
 	}
-	var result []AsnOverride
-	err := h.overrides.Find(nil).All(&result)
+	var answer []AsnOverride
+	err := h.overrides.Find(nil).All(&answer)
 	if err != nil {
 		return nil, fmt.Errorf("cannot retrieve overrides: %s", err)
 	}
-	return result, err
+	if answer == nil {
+		return make([]AsnOverride, 0), nil
+	}
+	return answer, nil
 }
