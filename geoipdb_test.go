@@ -27,6 +27,7 @@ package geoipdb_test
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -165,8 +166,8 @@ var (
 
 const (
 	mgUrl        = "127.0.0.1"
-	mgDatabase   = "geoipdb_test"
-	mgCollection = "dnsdist"
+	mgDatabase   = "dnsdist"
+	mgCollection = "geoipdb_test"
 )
 
 func TestNewHandlerWithOverrides(t *testing.T) {
@@ -184,10 +185,30 @@ func TestNewHandlerWithOverrides(t *testing.T) {
 	}
 }
 
+func TestOverridesListEmpty(t *testing.T) {
+	overrides, err := gh.OverridesList()
+	if err != nil {
+		t.Fatalf("OverridesList failed: %s", err)
+	}
+	if overrides == nil {
+		t.Fatalf("expected an empty list, got nil")
+	}
+	if len(overrides) != 0 {
+		t.Fatalf("expected an empty list, got: %v", overrides)
+	}
+}
+
 func TestOverridesLookupUnknownOverride(t *testing.T) {
 	_, err := gh.OverridesLookup(asnLookupAsn)
 	if err != geoipdb.OverridesAsnNotFoundError {
 		t.Fatalf("OverridesLookup returned unexpected error: %s", err)
+	}
+}
+
+func TestOverridesSetMalformedAsn(t *testing.T) {
+	err := gh.OverridesSet("qwerty", "l33t")
+	if err != geoipdb.OverridesMalformedAsnError {
+		t.Fatalf("OverridesSet returned unexpected error: %s", err)
 	}
 }
 
@@ -197,6 +218,18 @@ func TestOverridesSet(t *testing.T) {
 	err := gh.OverridesSet(asnLookupAsn, overridenDescr)
 	if err != nil {
 		t.Fatalf("OverridesSet failed: %s", err)
+	}
+}
+
+func TestOverridesListNotEmpty(t *testing.T) {
+	overrides, err := gh.OverridesList()
+	if err != nil {
+		t.Fatalf("OverridesList failed: %s", err)
+	}
+	t.Logf("overrides list: %v", overrides)
+	expected := []geoipdb.AsnOverride{{Asn: asnLookupAsn, Name: overridenDescr}}
+	if !reflect.DeepEqual(overrides, expected) {
+		t.Fatalf("unexpected return value, expected: %v", expected)
 	}
 }
 
@@ -215,8 +248,9 @@ func TestLookupAsnWithOverride(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LookupAsn failed for %s: %s", ip, err)
 	}
+	t.Logf("LookupAsn results: %s %s", asnLookupAsn, descr)
 	if descr != overridenDescr {
-		t.Fatalf("overriden description mismatch: expected '%s', received '%s'", overridenDescr, descr)
+		t.Fatalf("overriden description mismatch: expected '%s'", descr)
 	}
 }
 
@@ -226,4 +260,6 @@ func TestOverridesRemove(t *testing.T) {
 		t.Fatalf("OverridesRemove failed: %s", err)
 	}
 	TestOverridesLookupUnknownOverride(t)
+	TestLookupAsn(t)
+	TestOverridesListEmpty(t)
 }

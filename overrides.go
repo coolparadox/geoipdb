@@ -35,8 +35,8 @@ import (
 
 // AsnOverride is what is stored in the overrides collection.
 type AsnOverride struct {
-	Asn  string `bson:"_id"`
-	Name string `bson:"name"`
+	Asn  string `bson:"_id" json:"asn"`
+	Name string `bson:"name" json:"name"`
 }
 
 // OverridesNilCollectionError is returned by Overrides<...> methods
@@ -48,10 +48,15 @@ var OverridesNilCollectionError = errors.New("nil overrides collection")
 // when there is no override defined.
 var OverridesAsnNotFoundError = errors.New("ASN not found")
 
+// OverridesMalformedAsnError is returned by OverridesSet
+// when parameter asn does not conform to an ASN identification.
+var OverridesMalformedAsnError = errors.New("malformed ASN")
+
 // OverridesLookup queries the database of local overrides
 // for the description of a given ASN.
 //
-// Returns the ASN description.
+// Returns the ASN description,
+// or OverridesAsnNotFoundError if there is no override for the ASN.
 func (h Handler) OverridesLookup(asn string) (string, error) {
 	if h.overrides == nil {
 		return "", OverridesNilCollectionError
@@ -67,11 +72,14 @@ func (h Handler) OverridesLookup(asn string) (string, error) {
 	return override.Name, nil
 }
 
-// OverridesSet stores a user defined description for a given ASN
+// OverridesSet stores or updates a user defined description for a given ASN
 // in the database of local overrides.
 func (h Handler) OverridesSet(asn string, descr string) error {
 	if h.overrides == nil {
 		return OverridesNilCollectionError
+	}
+	if !reASN.MatchString(asn) {
+		return OverridesMalformedAsnError
 	}
 	_, err := h.overrides.UpsertId(asn, bson.M{"$set": bson.M{"name": descr}})
 	if err != nil {
@@ -80,8 +88,8 @@ func (h Handler) OverridesSet(asn string, descr string) error {
 	return nil
 }
 
-// OverridesRemove removes the description for a given ASN
-// from the database of local overrides.
+// OverridesRemove makes sure the description for a given ASN
+// is removed from the database of local overrides.
 func (h Handler) OverridesRemove(asn string) error {
 	if h.overrides == nil {
 		return OverridesNilCollectionError
@@ -94,4 +102,20 @@ func (h Handler) OverridesRemove(asn string) error {
 		return fmt.Errorf("cannot remove override: %s", err)
 	}
 	return nil
+}
+
+// OverridesList answers all ASN description overrides.
+func (h Handler) OverridesList() ([]AsnOverride, error) {
+	if h.overrides == nil {
+		return nil, OverridesNilCollectionError
+	}
+	var answer []AsnOverride
+	err := h.overrides.Find(nil).All(&answer)
+	if err != nil {
+		return nil, fmt.Errorf("cannot retrieve overrides: %s", err)
+	}
+	if answer == nil {
+		return make([]AsnOverride, 0), nil
+	}
+	return answer, nil
 }
