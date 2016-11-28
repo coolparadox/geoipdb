@@ -59,21 +59,20 @@ func newCache() cache {
 func (c cache) store(ip string, asn string, descr string) {
 }
 
-// lookupIP retrieves cached data by IP address.
+// lookupByIP retrieves cached data by IP address.
 //
 // Returns
 // the ASN identification and description,
-// if cached data is valid (ie not older than due date),
+// if cached data is expired,
 // and if ip was found in cache.
-func (c cache) lookupIP(ip string) (asn string, descr string, valid bool, found bool) {
+func (c cache) lookupByIP(ip string) (asn string, descr string, expired bool, found bool) {
 	return "", "", false, false
 }
 
-// lookupASN retrieves the list of cached IPs associated with a given ASN.
+// lookupByASN retrieves the list of cached IPs associated with a given ASN.
 //
 // Returns a non nil list of IP addresses.
-// If asn is not found in cache, returns an empty list.
-func lookupASN(asn string) []string {
+func (c cache) lookupByASN(asn string) []string {
 	return make([]string, 0)
 }
 

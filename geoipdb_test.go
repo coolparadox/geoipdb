@@ -136,6 +136,11 @@ func TestLookupAsn(t *testing.T) {
 	verifyAsn(t, asnLookupAsn, asnDescr)
 }
 
+func TestPurgeAsnCache(t *testing.T) {
+	gh.PurgeAsnCache()
+	TestLookupAsn(t)
+}
+
 func Example_lookupAsn() {
 	ip := "8.8.8.8"
 	gh, err := geoipdb.NewHandler(nil, time.Second*5)

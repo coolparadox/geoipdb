@@ -74,7 +74,11 @@ func (h Handler) OverridesLookup(asn string) (string, error) {
 
 // OverridesSet stores or updates a user defined description for a given ASN
 // in the database of local overrides.
+//
+// Moreover, this method purges the cache (see LookupAsn)
+// of all data related to the given asn.
 func (h Handler) OverridesSet(asn string, descr string) error {
+	h.cache.purgeASN(asn)
 	if h.overrides == nil {
 		return OverridesNilCollectionError
 	}
@@ -88,9 +92,14 @@ func (h Handler) OverridesSet(asn string, descr string) error {
 	return nil
 }
 
-// OverridesRemove makes sure the description for a given ASN
-// is removed from the database of local overrides.
+// OverridesRemove removes the description for a given ASN
+// from the database of local overrides.
+// It silently returns with nil if ASN is not found.
+//
+// Moreover, this method purges the cache (see LookupAsn)
+// of all data related to the given asn.
 func (h Handler) OverridesRemove(asn string) error {
+	h.cache.purgeASN(asn)
 	if h.overrides == nil {
 		return OverridesNilCollectionError
 	}
