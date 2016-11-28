@@ -309,3 +309,18 @@ func (h Handler) PurgeAsnCache() {
 	log.Println("(geoipdb) cache purge")
 	h.cache = newCache()
 }
+
+// LookupIp searches the cache
+// for all IP addresses associated with a given ASN.
+//
+// Returns a non nil list of IP addresses.
+func (h Handler) LookupIp(asn string) []string {
+	ips := h.cache.lookupByASN(asn)
+	answer := make([]string, len(ips))
+	var i int
+	for ip, _ := range ips {
+		answer[i] = ip
+		i++
+	}
+	return answer
+}

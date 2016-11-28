@@ -268,3 +268,11 @@ func TestOverridesRemove(t *testing.T) {
 	TestLookupAsn(t)
 	TestOverridesListEmpty(t)
 }
+
+func TestLookupIp(t *testing.T) {
+	expected := []string{ip}
+	ips := gh.LookupIp(asnLookupAsn)
+	if !reflect.DeepEqual(ips, expected) {
+		t.Fatalf("LookupIp result mismatch for %s: expected %v, got %v", asnLookupAsn, expected, ips)
+	}
+}

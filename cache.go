@@ -72,9 +72,9 @@ func (c cache) store(ip string, asn string, descr string) {
 	}
 	// Update IP map
 	c.ip[ip] = cacheEntry{
-		asn: asn,
+		asn:   asn,
 		descr: descr,
-		due: time.Now().Add(cacheTTL),
+		due:   time.Now().Add(cacheTTL),
 	}
 	// Update ASN map
 	if c.asn[asn] == nil {
