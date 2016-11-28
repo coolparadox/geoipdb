@@ -94,7 +94,8 @@ func (h Handler) OverridesSet(asn string, descr string) error {
 
 // OverridesRemove removes the description for a given ASN
 // from the database of local overrides.
-// It silently returns with nil if ASN is not found.
+// If there is no such ASN,
+// OverridesRemove returns silently without error.
 //
 // Moreover, this method purges the cache (see LookupAsn)
 // of all data related to the given asn.

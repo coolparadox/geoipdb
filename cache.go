@@ -29,34 +29,58 @@ import (
 	"time"
 )
 
-// cachedData is the data we want to keep cached.
-type cachedData struct {
+// cacheTTL is the expiration time of a cache entry.
+const cacheTTL = time.Hour * 24
+
+// cacheEntry is the data we want to keep cached.
+type cacheEntry struct {
 	// ASN number
 	asn string
 	// ASN description
 	descr string
-	// Due date of this cached information
+	// Due date of this entry
 	due time.Time
 }
 
 // cache allows manipulating cached data.
 type cache struct {
 	// IP to ASN data
-	ip map[string]cachedData
+	ip map[string]cacheEntry
 	// ASN to IP list
-	asn map[string][]string
+	asn map[string]map[string]interface{}
 }
 
 // newCache returns an empty initialized cache.
 func newCache() cache {
 	return cache{
-		ip:  make(map[string]cachedData),
-		asn: make(map[string][]string),
+		ip:  make(map[string]cacheEntry),
+		asn: make(map[string]map[string]interface{}),
 	}
 }
 
-// store stores data to the cache.
+// store updates the cache.
 func (c cache) store(ip string, asn string, descr string) {
+	// Purge ASN map of given ip
+	for _, ips := range c.asn {
+		delete(ips, ip)
+	}
+	// Purge ASN map of empty entries
+	for asn, ips := range c.asn {
+		if len(ips) < 1 {
+			delete(c.asn, asn)
+		}
+	}
+	// Update IP map
+	c.ip[ip] = cacheEntry{
+		asn: asn,
+		descr: descr,
+		due: time.Now().Add(cacheTTL),
+	}
+	// Update ASN map
+	if c.asn[asn] == nil {
+		c.asn[asn] = make(map[string]interface{})
+	}
+	c.asn[asn][ip] = nil
 }
 
 // lookupByIP retrieves cached data by IP address.
@@ -66,20 +90,32 @@ func (c cache) store(ip string, asn string, descr string) {
 // if cached data is expired,
 // and if ip was found in cache.
 func (c cache) lookupByIP(ip string) (asn string, descr string, expired bool, found bool) {
-	return "", "", false, false
+	entry, ok := c.ip[ip]
+	if !ok {
+		return "", "", false, false
+	}
+	return entry.asn, entry.descr, time.Now().After(entry.due), true
 }
 
 // lookupByASN retrieves the list of cached IPs associated with a given ASN.
 //
 // Returns a non nil list of IP addresses.
-func (c cache) lookupByASN(asn string) []string {
-	return make([]string, 0)
-}
-
-// purgeIP removes from cache all information related to a given IP.
-func (c cache) purgeIP(ip string) {
+func (c cache) lookupByASN(asn string) map[string]interface{} {
+	answer, ok := c.asn[asn]
+	if !ok || answer == nil {
+		return make(map[string]interface{})
+	}
+	return answer
 }
 
 // purgeASN removes from the cache all information related to a given ASN.
 func (c cache) purgeASN(asn string) {
+	// Purge ip map of given asn
+	for ip, entry := range c.ip {
+		if entry.asn == asn {
+			delete(c.ip, ip)
+		}
+	}
+	// Purge asn map of given asn
+	delete(c.asn, asn)
 }
