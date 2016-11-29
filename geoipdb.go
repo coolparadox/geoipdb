@@ -307,7 +307,7 @@ func (h Handler) getOverridenDescr(asn string, fallback string) string {
 // PurgeAsnCache erases all LookupAsn cached data.
 func (h Handler) PurgeAsnCache() {
 	log.Println("(geoipdb) cache purge")
-	h.cache = newCache()
+	h.cache.purgeAll()
 }
 
 // LookupIp searches the cache

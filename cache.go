@@ -27,6 +27,7 @@ package geoipdb
 
 import (
 	"time"
+	"sync"
 )
 
 // cacheTTL is the expiration time of a cache entry.
@@ -44,6 +45,8 @@ type cacheEntry struct {
 
 // cache allows manipulating cached data.
 type cache struct {
+	// Concurrent access control to maps
+	sync.RWMutex
 	// IP to ASN data
 	ip map[string]cacheEntry
 	// ASN to IP list
@@ -60,6 +63,8 @@ func newCache() cache {
 
 // store updates the cache.
 func (c cache) store(ip string, asn string, descr string) {
+	c.Lock()
+	defer c.Unlock()
 	// Purge ASN map of given ip
 	for _, ips := range c.asn {
 		delete(ips, ip)
@@ -90,6 +95,8 @@ func (c cache) store(ip string, asn string, descr string) {
 // if cached data is expired,
 // and if ip was found in cache.
 func (c cache) lookupByIP(ip string) (asn string, descr string, expired bool, found bool) {
+	c.RLock()
+	defer c.RUnlock()
 	entry, ok := c.ip[ip]
 	if !ok {
 		return "", "", false, false
@@ -101,6 +108,8 @@ func (c cache) lookupByIP(ip string) (asn string, descr string, expired bool, fo
 //
 // Returns a non nil list of IP addresses.
 func (c cache) lookupByASN(asn string) map[string]interface{} {
+	c.RLock()
+	defer c.RUnlock()
 	answer, ok := c.asn[asn]
 	if !ok || answer == nil {
 		return make(map[string]interface{})
@@ -110,6 +119,8 @@ func (c cache) lookupByASN(asn string) map[string]interface{} {
 
 // purgeASN removes from the cache all information related to a given ASN.
 func (c cache) purgeASN(asn string) {
+	c.Lock()
+	defer c.Unlock()
 	// Purge ip map of given asn
 	for ip, entry := range c.ip {
 		if entry.asn == asn {
@@ -118,4 +129,16 @@ func (c cache) purgeASN(asn string) {
 	}
 	// Purge asn map of given asn
 	delete(c.asn, asn)
+}
+
+// purgeAll removes all entries from the cache
+func (c cache) purgeAll() {
+	c.Lock()
+	defer c.Unlock()
+	for ip, _ := range c.ip {
+		delete(c.ip, ip)
+	}
+	for asn, _ := range c.asn {
+		delete(c.asn, asn)
+	}
 }
