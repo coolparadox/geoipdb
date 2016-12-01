@@ -75,6 +75,7 @@ type Handler struct {
 	cymru     cymruClient
 	timeout   time.Duration
 	overrides *mgo.Collection
+	cache     cache
 }
 
 // NewHandler creates a handler
@@ -99,6 +100,7 @@ func NewHandler(overrides *mgo.Collection, timeout time.Duration) (Handler, erro
 		cymru:     cy,
 		timeout:   timeout,
 		overrides: overrides,
+		cache:     newCache(),
 	}, nil
 }
 
@@ -128,10 +130,31 @@ func (h Handler) LibGeoipLookup(ip string) (string, string) {
 // Particularly, the overrides collection (see NewHandler)
 // takes precedence for querying ASN descriptions.
 //
+// Data returned by LookupAsn is cached with a 1 day TTL.
+// Also see: PurgeAsnCache.
+//
 // Returns
 // an ASN identification
 // and the corresponding description.
 func (h Handler) LookupAsn(ip string) (string, string, error) {
+	// Try cache
+	asn, descr, expired, found := h.cache.lookupByIP(ip)
+	if found && !expired {
+		return asn, descr, nil
+	}
+	log.Printf("(geoipdb) cache miss for %s\n", ip)
+	// Try uncached lookup
+	var err error
+	asn, descr, err = h.lookupAsnUncached(ip)
+	if err == nil {
+		// Update cache
+		h.cache.store(ip, asn, descr)
+	}
+	return asn, descr, err
+}
+
+// lookupAsnUncached is the uncached version of LookupAsn.
+func (h Handler) lookupAsnUncached(ip string) (string, string, error) {
 	// Try libgeoip
 	asnGi, asnDescr := h.LibGeoipLookup(ip)
 	if asnGi != "" && asnDescr != "" {
@@ -279,4 +302,25 @@ func (h Handler) getOverridenDescr(asn string, fallback string) string {
 		return fallback
 	}
 	return descr
+}
+
+// PurgeAsnCache erases all LookupAsn cached data.
+func (h Handler) PurgeAsnCache() {
+	log.Println("(geoipdb) cache purge")
+	h.cache.purgeAll()
+}
+
+// LookupIp searches the cache
+// for all IP addresses associated with a given ASN.
+//
+// Returns a non nil list of IP addresses.
+func (h Handler) LookupIp(asn string) []string {
+	ips := h.cache.lookupByASN(asn)
+	answer := make([]string, len(ips))
+	var i int
+	for ip, _ := range ips {
+		answer[i] = ip
+		i++
+	}
+	return answer
 }

@@ -136,6 +136,11 @@ func TestLookupAsn(t *testing.T) {
 	verifyAsn(t, asnLookupAsn, asnDescr)
 }
 
+func TestPurgeAsnCache(t *testing.T) {
+	gh.PurgeAsnCache()
+	TestLookupAsn(t)
+}
+
 func Example_lookupAsn() {
 	ip := "8.8.8.8"
 	gh, err := geoipdb.NewHandler(nil, time.Second*5)
@@ -262,4 +267,12 @@ func TestOverridesRemove(t *testing.T) {
 	TestOverridesLookupUnknownOverride(t)
 	TestLookupAsn(t)
 	TestOverridesListEmpty(t)
+}
+
+func TestLookupIp(t *testing.T) {
+	expected := []string{ip}
+	ips := gh.LookupIp(asnLookupAsn)
+	if !reflect.DeepEqual(ips, expected) {
+		t.Fatalf("LookupIp result mismatch for %s: expected %v, got %v", asnLookupAsn, expected, ips)
+	}
 }
