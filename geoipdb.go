@@ -131,7 +131,7 @@ func (h Handler) LibGeoipLookup(ip string) (string, string) {
 // takes precedence for querying ASN descriptions.
 //
 // Data returned by LookupAsn is cached with a 1 day TTL.
-// Also see: PurgeAsnCache.
+// Also see: AsnCachePurge.
 //
 // Returns
 // an ASN identification
@@ -304,8 +304,8 @@ func (h Handler) getOverridenDescr(asn string, fallback string) string {
 	return descr
 }
 
-// PurgeAsnCache erases all LookupAsn cached data.
-func (h Handler) PurgeAsnCache() {
+// AsnCachePurge erases all LookupAsn cached data.
+func (h Handler) AsnCachePurge() {
 	log.Println("(geoipdb) cache purge")
 	h.cache.purgeAll()
 }
@@ -323,4 +323,11 @@ func (h Handler) LookupIp(asn string) []string {
 		i++
 	}
 	return answer
+}
+
+// AsnCacheList retrieves all ASNs known to the cache.
+//
+// Returns a non nil list of ASNs.
+func (h Handler) AsnCacheList() []string {
+	return h.cache.asnList()
 }
