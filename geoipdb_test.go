@@ -136,8 +136,8 @@ func TestLookupAsn(t *testing.T) {
 	verifyAsn(t, asnLookupAsn, asnDescr)
 }
 
-func TestPurgeAsnCache(t *testing.T) {
-	gh.PurgeAsnCache()
+func TestAsnCachePurge(t *testing.T) {
+	gh.AsnCachePurge()
 	TestLookupAsn(t)
 }
 
@@ -274,5 +274,13 @@ func TestLookupIp(t *testing.T) {
 	ips := gh.LookupIp(asnLookupAsn)
 	if !reflect.DeepEqual(ips, expected) {
 		t.Fatalf("LookupIp result mismatch for %s: expected %v, got %v", asnLookupAsn, expected, ips)
+	}
+}
+
+func TestAsnCacheList(t *testing.T) {
+	expected := []string{asnLookupAsn}
+	asns := gh.AsnCacheList()
+	if !reflect.DeepEqual(asns, expected) {
+		t.Fatalf("AsnCacheList result mismatch: expected %v, got %v", expected, asns)
 	}
 }

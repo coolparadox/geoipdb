@@ -142,3 +142,18 @@ func (c cache) purgeAll() {
 		delete(c.asn, asn)
 	}
 }
+
+// asnList retrieves all ASNs known to the cache.
+//
+// Returns a non nil list of ASNs.
+func (c cache) asnList() []string {
+	c.RLock()
+	defer c.RUnlock()
+	answer := make([]string, len(c.asn))
+	var i int
+	for asn := range c.asn {
+		answer[i] = asn
+		i++
+	}
+	return answer
+}
