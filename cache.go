@@ -63,6 +63,9 @@ func newCache() cache {
 
 // store updates the cache.
 func (c cache) store(ip string, asn string, descr string) {
+	if ip == "" {
+		return
+	}
 	c.Lock()
 	defer c.Unlock()
 	// Purge ASN map of given ip
