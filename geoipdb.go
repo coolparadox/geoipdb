@@ -43,6 +43,7 @@ package geoipdb
 
 import (
 	"fmt"
+	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -110,6 +111,9 @@ func NewHandler(overrides *mgo.Collection, timeout time.Duration) (Handler, erro
 // an ASN identification
 // and the corresponding description.
 func (h Handler) LibGeoipLookup(ip string) (string, string) {
+	if ip == "" {
+		return "", ""
+	}
 	tmp, _ := h.geoip.GetName(ip)
 	tmp = strings.TrimSpace(tmp)
 	if tmp == "" {
@@ -137,6 +141,9 @@ func (h Handler) LibGeoipLookup(ip string) (string, string) {
 // an ASN identification
 // and the corresponding description.
 func (h Handler) LookupAsn(ip string) (string, string, error) {
+	if ip == "" {
+		return "", "", errors.New("empty ip parameter")
+	}
 	// Try cache
 	asn, descr, expired, found := h.cache.lookupByIP(ip)
 	if found && !expired {
@@ -155,6 +162,9 @@ func (h Handler) LookupAsn(ip string) (string, string, error) {
 
 // lookupAsnUncached is the uncached version of LookupAsn.
 func (h Handler) lookupAsnUncached(ip string) (string, string, error) {
+	if ip == "" {
+		return "", "", errors.New("empty ip parameter")
+	}
 	// Try libgeoip
 	asnGi, asnDescr := h.LibGeoipLookup(ip)
 	if asnGi != "" && asnDescr != "" {
@@ -200,6 +210,9 @@ func (h Handler) lookupAsnUncached(ip string) (string, string, error) {
 // an ASN identification
 // and the corresponding description.
 func (h Handler) IpInfoLookup(ip string) (string, string, error) {
+	if ip == "" {
+		return "", "", errors.New("empty ip parameter")
+	}
 	client := &http.Client{
 		Timeout: h.timeout,
 	}
