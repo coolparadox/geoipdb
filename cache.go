@@ -26,8 +26,8 @@
 package geoipdb
 
 import (
-	"time"
 	"sync"
+	"time"
 )
 
 // cacheTTL is the expiration time of a cache entry.
@@ -46,7 +46,7 @@ type cacheEntry struct {
 // cache allows manipulating cached data.
 type cache struct {
 	// Concurrent access control to maps
-	sync.RWMutex
+	*sync.RWMutex
 	// IP to ASN data
 	ip map[string]cacheEntry
 	// ASN to IP list
@@ -56,8 +56,9 @@ type cache struct {
 // newCache returns an empty initialized cache.
 func newCache() cache {
 	return cache{
-		ip:  make(map[string]cacheEntry),
-		asn: make(map[string]map[string]interface{}),
+		&sync.RWMutex{},
+		make(map[string]cacheEntry),
+		make(map[string]map[string]interface{}),
 	}
 }
 
