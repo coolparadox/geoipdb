@@ -27,12 +27,14 @@ package geoipdb_test
 
 import (
 	"fmt"
+	"net"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/turbobytes/geoipdb"
+	"github.com/turbobytes/geoipdb/iputils"
 	"gopkg.in/mgo.v2"
 )
 
@@ -282,5 +284,34 @@ func TestAsnCacheList(t *testing.T) {
 	asns := gh.AsnCacheList()
 	if !reflect.DeepEqual(asns, expected) {
 		t.Fatalf("AsnCacheList result mismatch: expected %v, got %v", expected, asns)
+	}
+}
+
+func TestIsLocalIp(t *testing.T) {
+	publicIps := []string{
+		"8.8.8.8",
+		"74.125.130.100",
+		"1.1.1.1",
+		"45.45.45.45",
+		"120.222.111.222",
+		"2404:6800:4003:c01::64",
+	}
+	privateIps := []string{
+		"127.0.0.1",
+		"10.5.6.4",
+		"192.168.5.99",
+		"100.66.55.66",
+		"fd07:a47c:3742:823e:3b02:76:982b:463",
+		"::1",
+	}
+	for _, ip := range publicIps {
+		if iputils.IsLocalIp(net.ParseIP(ip)) {
+			t.Fatalf("IsLocalIp(%s) returned %s", ip, "true")
+		}
+	}
+	for _, ip := range privateIps {
+		if !iputils.IsLocalIp(net.ParseIP(ip)) {
+			t.Fatalf("IsLocalIp(%s) returned %s", ip, "false")
+		}
 	}
 }
