@@ -53,6 +53,7 @@ import (
 
 	"github.com/abh/geoip"
 	"github.com/miekg/dns"
+	"github.com/turbobytes/geoipdb/iputils"
 	"gopkg.in/mgo.v2"
 )
 
@@ -68,6 +69,13 @@ func init() {
 var (
 	reASN       *regexp.Regexp
 	reDNSFilter *regexp.Regexp
+)
+
+var (
+	// MalformedIPError is returned on parse failure of IP parameter.
+	MalformedIPError = errors.New("malformed IP address")
+	// IPv6NotSupportedError is returned when IP parameter contains an IPv6 address.
+	IPv6NotSupportedError = errors.New("IPv6 not yet supported")
 )
 
 // Handler is a handler to TurboBytes GeoIP helper functions.
@@ -111,7 +119,7 @@ func NewHandler(overrides *mgo.Collection, timeout time.Duration) (Handler, erro
 // an ASN identification
 // and the corresponding description.
 func (h Handler) LibGeoipLookup(ip string) (string, string) {
-	if ip == "" {
+	if !iputils.IsIP4(ip) {
 		return "", ""
 	}
 	tmp, _ := h.geoip.GetName(ip)
@@ -141,8 +149,12 @@ func (h Handler) LibGeoipLookup(ip string) (string, string) {
 // an ASN identification
 // and the corresponding description.
 func (h Handler) LookupAsn(ip string) (string, string, error) {
-	if ip == "" {
-		return "", "", errors.New("empty ip parameter")
+	ip_, is4 := iputils.ParseIP(ip)
+	if ip_ == nil {
+		return "", "", MalformedIPError
+	}
+	if !is4 {
+		return "", "", IPv6NotSupportedError
 	}
 	// Try cache
 	asn, descr, expired, found := h.cache.lookupByIP(ip)
@@ -162,8 +174,12 @@ func (h Handler) LookupAsn(ip string) (string, string, error) {
 
 // lookupAsnUncached is the uncached version of LookupAsn.
 func (h Handler) lookupAsnUncached(ip string) (string, string, error) {
-	if ip == "" {
-		return "", "", errors.New("empty ip parameter")
+	ip_, is4 := iputils.ParseIP(ip)
+	if ip_ == nil {
+		return "", "", MalformedIPError
+	}
+	if !is4 {
+		return "", "", IPv6NotSupportedError
 	}
 	// Try libgeoip
 	asnGi, asnDescr := h.LibGeoipLookup(ip)
@@ -210,8 +226,12 @@ func (h Handler) lookupAsnUncached(ip string) (string, string, error) {
 // an ASN identification
 // and the corresponding description.
 func (h Handler) IpInfoLookup(ip string) (string, string, error) {
-	if ip == "" {
-		return "", "", errors.New("empty ip parameter")
+	ip_, is4 := iputils.ParseIP(ip)
+	if ip_ == nil {
+		return "", "", MalformedIPError
+	}
+	if !is4 {
+		return "", "", IPv6NotSupportedError
 	}
 	client := &http.Client{
 		Timeout: h.timeout,

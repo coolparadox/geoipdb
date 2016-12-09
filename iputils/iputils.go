@@ -116,3 +116,25 @@ func IsLocalIP(ip net.IP) bool {
 	}
 	return false
 }
+
+// IsIP4 tells if a string is an IPv4 address.
+func IsIP4(s string) bool {
+	_, answer := ParseIP(s)
+	return answer
+}
+
+// IsIP6 tells if a string is an IPv6 address.
+func isIP6(s string) bool {
+	ip, isV4 := ParseIP(s)
+	return ip != nil && !isV4
+}
+
+// ParseIP is a wrapper around net.ParseIP and net.IP.To4
+func ParseIP(s string) (ip net.IP, isIPv4 bool) {
+	ip = net.ParseIP(s)
+	if ip == nil {
+		return
+	}
+	isIPv4 = ip.To4() != nil
+	return
+}
