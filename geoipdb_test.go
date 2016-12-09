@@ -315,3 +315,27 @@ func TestIsLocalIP(t *testing.T) {
 		}
 	}
 }
+
+func TestLookupAsnMalformedIP(t *testing.T) {
+	ip := "192.168.0"
+	_, _, err := gh.LookupAsn(ip)
+	if err != geoipdb.MalformedIPError {
+		t.Fatalf("unexpected LookupAsn error: %v", err)
+	}
+}
+
+func TestLookupAsnIPv6(t *testing.T) {
+	ip := "fd07:a47c:3742:823e:3b02:76:982b:463"
+	_, _, err := gh.LookupAsn(ip)
+	if err != geoipdb.IPv6NotSupportedError {
+		t.Fatalf("unexpected LookupAsn error: %v", err)
+	}
+}
+
+func TestLookupAsnPrivateIP(t *testing.T) {
+	ip := "192.168.0.101"
+	_, _, err := gh.LookupAsn(ip)
+	if err != geoipdb.PrivateIPError {
+		t.Fatalf("unexpected LookupAsn error: %v", err)
+	}
+}

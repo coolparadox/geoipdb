@@ -76,6 +76,8 @@ var (
 	MalformedIPError = errors.New("malformed IP address")
 	// IPv6NotSupportedError is returned when IP parameter contains an IPv6 address.
 	IPv6NotSupportedError = errors.New("IPv6 not yet supported")
+	// PrivateIPError is returned on AS lookup of a private IP address.
+	PrivateIPError = errors.New("Private IP address")
 )
 
 // Handler is a handler to TurboBytes GeoIP helper functions.
@@ -119,7 +121,11 @@ func NewHandler(overrides *mgo.Collection, timeout time.Duration) (Handler, erro
 // an ASN identification
 // and the corresponding description.
 func (h Handler) LibGeoipLookup(ip string) (string, string) {
-	if !iputils.IsIP4(ip) {
+	ip_, is4 := iputils.ParseIP(ip)
+	if !is4 {
+		return "", ""
+	}
+	if iputils.IsLocalIP(ip_) {
 		return "", ""
 	}
 	tmp, _ := h.geoip.GetName(ip)
@@ -156,6 +162,9 @@ func (h Handler) LookupAsn(ip string) (string, string, error) {
 	if !is4 {
 		return "", "", IPv6NotSupportedError
 	}
+	if iputils.IsLocalIP(ip_) {
+		return "", "", PrivateIPError
+	}
 	// Try cache
 	asn, descr, expired, found := h.cache.lookupByIP(ip)
 	if found && !expired {
@@ -180,6 +189,9 @@ func (h Handler) lookupAsnUncached(ip string) (string, string, error) {
 	}
 	if !is4 {
 		return "", "", IPv6NotSupportedError
+	}
+	if iputils.IsLocalIP(ip_) {
+		return "", "", PrivateIPError
 	}
 	// Try libgeoip
 	asnGi, asnDescr := h.LibGeoipLookup(ip)
@@ -232,6 +244,9 @@ func (h Handler) IpInfoLookup(ip string) (string, string, error) {
 	}
 	if !is4 {
 		return "", "", IPv6NotSupportedError
+	}
+	if iputils.IsLocalIP(ip_) {
+		return "", "", PrivateIPError
 	}
 	client := &http.Client{
 		Timeout: h.timeout,
