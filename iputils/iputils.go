@@ -30,15 +30,29 @@ import (
 )
 
 func init() {
-	// Make sure nonGlobalIPv*CIDRs are parseable.
-	cidrs := append(nonGlobalIPv4CIDRs, nonGlobalIPv6CIDRs...)
-	for _, cidr := range cidrs {
-		_, _, err := net.ParseCIDR(cidr)
+	// Initialize nonGlobalIPv*Nets
+	nonGlobalIPv4Nets = make([]*net.IPNet, len(nonGlobalIPv4CIDRs))
+	for i, cidr := range nonGlobalIPv4CIDRs {
+		_, inet, err := net.ParseCIDR(cidr)
 		if err != nil {
-			panic("unparseable CIDR '" + cidr + "': " + err.Error())
+			panic(err)
 		}
+		nonGlobalIPv4Nets[i] = inet
+	}
+	nonGlobalIPv6Nets = make([]*net.IPNet, len(nonGlobalIPv6CIDRs))
+	for i, cidr := range nonGlobalIPv6CIDRs {
+		_, inet, err := net.ParseCIDR(cidr)
+		if err != nil {
+			panic(err)
+		}
+		nonGlobalIPv6Nets[i] = inet
 	}
 }
+
+var (
+	nonGlobalIPv4Nets []*net.IPNet
+	nonGlobalIPv6Nets []*net.IPNet
+)
 
 // nonGlobalIPv4CIDRs contains IANA IPv4 Special-Purpose Address Registry,
 // where 'Global' flag is false.
@@ -69,29 +83,23 @@ var nonGlobalIPv6CIDRs = []string{
 	"::1/128",       // Loopback Address, RFC4291
 	"fc00::/7",      // Unique-Local, RFC4193
 	"::ffff:0:0/96", // IPv4-mapped Address, RFC4291
-	"2001::/23",     // IETF Protocol Assignments, RFC2928
 	"fe80::/10",     // Linked-Scoped Unicast, RFC4291
+	"::/128",        // Unspecified Address, RFC4291
+	"2001::/23",     // IETF Protocol Assignments, RFC2928
 	"2001:db8::/32", // Documentation, RFC3849
 	"2001:2::/48",   // Benchmarking, RFC5180
 	"2001::/32",     // TEREDO, RFC4380
 	"100::/64",      // Discard-Only Address Block, RFC6666
-	"::/128",        // Unspecified Address, RFC4291
 }
 
 // IsLocalIP tells if an IP address is not forwardable beyond a network.
-//
-// Returns if the given IP address is local.
 func IsLocalIP(ip net.IP) bool {
 	if ip == nil {
 		return true
 	}
 	ip4 := ip.To4()
 	if ip4 != nil {
-		for _, cidr := range nonGlobalIPv4CIDRs {
-			_, inet, err := net.ParseCIDR(cidr)
-			if err != nil {
-				continue
-			}
+		for _, inet := range nonGlobalIPv4Nets {
 			if inet.Contains(ip4) {
 				return true
 			}
@@ -100,11 +108,7 @@ func IsLocalIP(ip net.IP) bool {
 	}
 	ip6 := ip.To16()
 	if ip6 != nil {
-		for _, cidr := range nonGlobalIPv6CIDRs {
-			_, inet, err := net.ParseCIDR(cidr)
-			if err != nil {
-				continue
-			}
+		for _, inet := range nonGlobalIPv6Nets {
 			if inet.Contains(ip6) {
 				return true
 			}
