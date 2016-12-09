@@ -287,7 +287,7 @@ func TestAsnCacheList(t *testing.T) {
 	}
 }
 
-func TestIsLocalIp(t *testing.T) {
+func TestIsLocalIP(t *testing.T) {
 	publicIps := []string{
 		"8.8.8.8",
 		"74.125.130.100",
@@ -305,12 +305,12 @@ func TestIsLocalIp(t *testing.T) {
 		"::1",
 	}
 	for _, ip := range publicIps {
-		if iputils.IsLocalIp(net.ParseIP(ip)) {
+		if iputils.IsLocalIP(net.ParseIP(ip)) {
 			t.Fatalf("IsLocalIp(%s) returned %s", ip, "true")
 		}
 	}
 	for _, ip := range privateIps {
-		if !iputils.IsLocalIp(net.ParseIP(ip)) {
+		if !iputils.IsLocalIP(net.ParseIP(ip)) {
 			t.Fatalf("IsLocalIp(%s) returned %s", ip, "false")
 		}
 	}

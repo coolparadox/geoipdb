@@ -42,8 +42,8 @@ see other Handler lookup methods.
 package geoipdb
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
