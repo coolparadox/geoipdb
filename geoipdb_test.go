@@ -339,3 +339,45 @@ func TestLookupAsnPrivateIP(t *testing.T) {
 		t.Fatalf("unexpected LookupAsn error: %v", err)
 	}
 }
+
+type ipTestData struct {
+	ip    string
+	asn   string
+	descr string
+	err   string
+}
+
+func TestLookupAsnOtherIPs(t *testing.T) {
+	tests := []ipTestData{
+		ipTestData{"1.1.1.1", "AS15169", "Google Inc.", ""},
+		ipTestData{"8.8.8.8", "AS15169", "Google Inc.", ""},
+		ipTestData{"10.0.45.98", "", "", "private IP address"},
+		ipTestData{"74.125.130.100", "AS15169", "Google Inc.", ""},
+		ipTestData{"80.10.246.2", "", "", "unknown ASN for ip '80.10.246.2'"},
+		ipTestData{"80.10.246.129", "", "", "unknown ASN for ip '80.10.246.129'"},
+		ipTestData{"127.0.0.1", "", "", "private IP address"},
+		ipTestData{"192.168.0.102", "", "", "private IP address"},
+		ipTestData{"2001:4860:1004::876:102", "", "", "IPv6 not yet supported"},
+		ipTestData{"2404:6800:4003:c01::64", "", "", "IPv6 not yet supported"},
+		ipTestData{"ns1.google.com", "", "", "malformed IP address"},
+		ipTestData{"ns2.google.com", "", "", "malformed IP address"},
+	}
+	for _, test := range tests {
+		asn, descr, err := gh.LookupAsn(test.ip)
+		if asn != test.asn {
+			t.Fatalf("unexpected ASN returned by LookupAsn(\"%s\"): %s", test.ip, asn)
+		}
+		if descr != test.descr {
+			t.Fatalf("unexpected AS name returned by LookupAsn(\"%s\"): %s", test.ip, descr)
+		}
+		if err == nil {
+			if test.err != "" {
+				t.Fatalf("unexpected error returned by LookupAsn(\"%s\"): %s", test.ip, "nil")
+			}
+		} else {
+			if err.Error() != test.err {
+				t.Fatalf("unexpected error returned by LookupAsn(\"%s\"): %s", test.ip, err)
+			}
+		}
+	}
+}

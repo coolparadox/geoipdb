@@ -77,7 +77,7 @@ var (
 	// IPv6NotSupportedError is returned when IP parameter contains an IPv6 address.
 	IPv6NotSupportedError = errors.New("IPv6 not yet supported")
 	// PrivateIPError is returned on AS lookup of a private IP address.
-	PrivateIPError = errors.New("Private IP address")
+	PrivateIPError = errors.New("private IP address")
 )
 
 // Handler is a handler to TurboBytes GeoIP helper functions.
