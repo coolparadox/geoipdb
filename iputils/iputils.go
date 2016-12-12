@@ -92,7 +92,7 @@ var nonGlobalIPv6CIDRs = []string{
 	"100::/64",      // Discard-Only Address Block, RFC6666
 }
 
-// IsLocalIP tells if an IP address is not forwardable beyond a network.
+// IsLocalIP tells if an IP address is not forwardable across networks.
 func IsLocalIP(ip net.IP) bool {
 	if ip == nil {
 		return true
@@ -117,16 +117,16 @@ func IsLocalIP(ip net.IP) bool {
 	return false
 }
 
-// IsIP4 tells if a string is an IPv4 address.
-func IsIP4(s string) bool {
+// IsIPv4 tells if a string is an IPv4 address.
+func IsIPv4(s string) bool {
 	_, answer := ParseIP(s)
 	return answer
 }
 
-// IsIP6 tells if a string is an IPv6 address.
-func isIP6(s string) bool {
-	ip, isV4 := ParseIP(s)
-	return ip != nil && !isV4
+// IsIPv6 tells if a string is an IPv6 address.
+func IsIPv6(s string) bool {
+	ip, isIPv4 := ParseIP(s)
+	return ip != nil && !isIPv4
 }
 
 // ParseIP is a wrapper around net.ParseIP and net.IP.To4
