@@ -310,9 +310,6 @@ func (cc cymruClient) lookup(asn string) (string, error) {
 	if asn == "" {
 		return "", fmt.Errorf("empty asn parameter")
 	}
-	if !reASN.MatchString(asn) {
-		log.Printf("warning: '%s' doesn't look a proper ASN identification.\n", asn)
-	}
 	if cc.dnsClient == nil {
 		return "", fmt.Errorf("cymruClient not initialized")
 	}
