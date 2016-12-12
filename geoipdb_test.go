@@ -349,7 +349,7 @@ type ipTestData struct {
 
 func TestLookupAsnOtherIPs(t *testing.T) {
 	tests := []ipTestData{
-		ipTestData{"1.1.1.1", "AS15169", "Google Inc.", ""},
+		ipTestData{"1.1.1.1", "", "", "unknown ASN for ip '1.1.1.1'"},
 		ipTestData{"8.8.8.8", "AS15169", "Google Inc.", ""},
 		ipTestData{"10.0.45.98", "", "", "private IP address"},
 		ipTestData{"74.125.130.100", "AS15169", "Google Inc.", ""},
