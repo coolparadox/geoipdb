@@ -126,11 +126,11 @@ func NewHandler(overrides *mgo.Collection, timeout time.Duration) (Handler, erro
 // and the corresponding description.
 func (h Handler) LibGeoipLookup(ip string) (string, string) {
 	var name string
-	ip_, is4 := iputils.ParseIP(ip)
-	if ip_ == nil {
+	ipAddr, isIPv4 := iputils.ParseIP(ip)
+	if ipAddr == nil {
 		return "", ""
 	}
-	if is4 {
+	if isIPv4 {
 		name, _ = h.geoip4.GetName(ip)
 	} else {
 		name, _ = h.geoip6.GetNameV6(ip)
@@ -162,11 +162,11 @@ func (h Handler) LibGeoipLookup(ip string) (string, string) {
 // and the corresponding description.
 func (h Handler) LookupAsn(ip string) (string, string, error) {
 	// Sanity check input
-	ip_, _ := iputils.ParseIP(ip)
-	if ip_ == nil {
+	ipAddr, _ := iputils.ParseIP(ip)
+	if ipAddr == nil {
 		return "", "", MalformedIPError
 	}
-	if iputils.IsLocalIP(ip_) {
+	if iputils.IsLocalIP(ipAddr) {
 		return "", "", PrivateIPError
 	}
 	// Try cache
