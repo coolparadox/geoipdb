@@ -117,6 +117,11 @@ func IsLocalIP(ip net.IP) bool {
 	return false
 }
 
+// IsIP tells if a string is an IP address.
+func IsIP(s string) bool {
+	return net.ParseIP(s) != nil
+}
+
 // IsIPv4 tells if a string is an IPv4 address.
 func IsIPv4(s string) bool {
 	_, answer := ParseIP(s)

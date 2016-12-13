@@ -327,7 +327,8 @@ func TestLookupAsnMalformedIP(t *testing.T) {
 func TestLookupAsnIPv6(t *testing.T) {
 	ip := "fd07:a47c:3742:823e:3b02:76:982b:463"
 	_, _, err := gh.LookupAsn(ip)
-	if err != geoipdb.IPv6NotSupportedError {
+	if true {
+	//if err != geoipdb.IPv6NotSupportedError {
 		t.Fatalf("unexpected LookupAsn error: %v", err)
 	}
 }

@@ -74,8 +74,6 @@ var (
 var (
 	// MalformedIPError is returned on parse failure of IP parameter.
 	MalformedIPError = errors.New("malformed IP address")
-	// IPv6NotSupportedError is returned when IP parameter contains an IPv6 address.
-	IPv6NotSupportedError = errors.New("IPv6 not yet supported")
 	// PrivateIPError is returned on AS lookup of a private IP address.
 	PrivateIPError = errors.New("private IP address")
 )
@@ -121,19 +119,19 @@ func NewHandler(overrides *mgo.Collection, timeout time.Duration) (Handler, erro
 // an ASN identification
 // and the corresponding description.
 func (h Handler) LibGeoipLookup(ip string) (string, string) {
-	ip_, is4 := iputils.ParseIP(ip)
-	if !is4 {
+	var name string
+	if iputils.IsIPv4(ip) {
+		name, _ = h.geoip.GetName(ip)
+	} else if iputils.IsIPv6(ip) {
+		name, _ = h.geoip.GetNameV6(ip)
+	} else {
 		return "", ""
 	}
-	if iputils.IsLocalIP(ip_) {
+	name = strings.TrimSpace(name)
+	if name == "" {
 		return "", ""
 	}
-	tmp, _ := h.geoip.GetName(ip)
-	tmp = strings.TrimSpace(tmp)
-	if tmp == "" {
-		return "", ""
-	}
-	answer := strings.SplitN(tmp, " ", 2)
+	answer := strings.SplitN(name, " ", 2)
 	if len(answer) < 2 {
 		return answer[0], ""
 	}
@@ -155,12 +153,10 @@ func (h Handler) LibGeoipLookup(ip string) (string, string) {
 // an ASN identification
 // and the corresponding description.
 func (h Handler) LookupAsn(ip string) (string, string, error) {
-	ip_, is4 := iputils.ParseIP(ip)
+	// Sanity check input
+	ip_, _ := iputils.ParseIP(ip)
 	if ip_ == nil {
 		return "", "", MalformedIPError
-	}
-	if !is4 {
-		return "", "", IPv6NotSupportedError
 	}
 	if iputils.IsLocalIP(ip_) {
 		return "", "", PrivateIPError
@@ -183,16 +179,6 @@ func (h Handler) LookupAsn(ip string) (string, string, error) {
 
 // lookupAsnUncached is the uncached version of LookupAsn.
 func (h Handler) lookupAsnUncached(ip string) (string, string, error) {
-	ip_, is4 := iputils.ParseIP(ip)
-	if ip_ == nil {
-		return "", "", MalformedIPError
-	}
-	if !is4 {
-		return "", "", IPv6NotSupportedError
-	}
-	if iputils.IsLocalIP(ip_) {
-		return "", "", PrivateIPError
-	}
 	// Try libgeoip
 	asnGi, asnDescr := h.LibGeoipLookup(ip)
 	if asnGi != "" && asnDescr != "" {
@@ -238,15 +224,8 @@ func (h Handler) lookupAsnUncached(ip string) (string, string, error) {
 // an ASN identification
 // and the corresponding description.
 func (h Handler) IpInfoLookup(ip string) (string, string, error) {
-	ip_, is4 := iputils.ParseIP(ip)
-	if ip_ == nil {
+	if !iputils.IsIP(ip) {
 		return "", "", MalformedIPError
-	}
-	if !is4 {
-		return "", "", IPv6NotSupportedError
-	}
-	if iputils.IsLocalIP(ip_) {
-		return "", "", PrivateIPError
 	}
 	client := &http.Client{
 		Timeout: h.timeout,
