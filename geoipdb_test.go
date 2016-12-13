@@ -325,10 +325,9 @@ func TestLookupAsnMalformedIP(t *testing.T) {
 }
 
 func TestLookupAsnIPv6(t *testing.T) {
-	ip := "fd07:a47c:3742:823e:3b02:76:982b:463"
+	ip := "2001:4860:1004::876:102"
 	_, _, err := gh.LookupAsn(ip)
-	if true {
-	//if err != geoipdb.IPv6NotSupportedError {
+	if err != nil {
 		t.Fatalf("unexpected LookupAsn error: %v", err)
 	}
 }
@@ -358,8 +357,8 @@ func TestLookupAsnOtherIPs(t *testing.T) {
 		ipTestData{"80.10.246.129", "", "", "unknown ASN for ip '80.10.246.129'"},
 		ipTestData{"127.0.0.1", "", "", "private IP address"},
 		ipTestData{"192.168.0.102", "", "", "private IP address"},
-		ipTestData{"2001:4860:1004::876:102", "", "", "IPv6 not yet supported"},
-		ipTestData{"2404:6800:4003:c01::64", "", "", "IPv6 not yet supported"},
+		ipTestData{"2001:4860:1004::876:102", "AS15169", "Google Inc.", ""},
+		ipTestData{"fc00::c01:64", "", "", "private IP address"},
 		ipTestData{"ns1.google.com", "", "", "malformed IP address"},
 		ipTestData{"ns2.google.com", "", "", "malformed IP address"},
 	}

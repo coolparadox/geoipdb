@@ -80,7 +80,8 @@ var (
 
 // Handler is a handler to TurboBytes GeoIP helper functions.
 type Handler struct {
-	geoip     *geoip.GeoIP
+	geoip4    *geoip.GeoIP
+	geoip6    *geoip.GeoIP
 	cymru     cymruClient
 	timeout   time.Duration
 	overrides *mgo.Collection
@@ -99,13 +100,18 @@ type Handler struct {
 //
 // Returns a geoipdb handler.
 func NewHandler(overrides *mgo.Collection, timeout time.Duration) (Handler, error) {
-	ge, err := geoip.OpenType(geoip.GEOIP_ASNUM_EDITION)
+	ge4, err := geoip.OpenType(geoip.GEOIP_ASNUM_EDITION)
+	if err != nil {
+		return Handler{}, fmt.Errorf("cannot open GeoIP database: %s", err)
+	}
+	ge6, err := geoip.OpenType(geoip.GEOIP_ASNUM_EDITION_V6)
 	if err != nil {
 		return Handler{}, fmt.Errorf("cannot open GeoIP database: %s", err)
 	}
 	cy := newCymruClient(timeout)
 	return Handler{
-		geoip:     ge,
+		geoip4:    ge4,
+		geoip6:    ge6,
 		cymru:     cy,
 		timeout:   timeout,
 		overrides: overrides,
@@ -120,12 +126,14 @@ func NewHandler(overrides *mgo.Collection, timeout time.Duration) (Handler, erro
 // and the corresponding description.
 func (h Handler) LibGeoipLookup(ip string) (string, string) {
 	var name string
-	if iputils.IsIPv4(ip) {
-		name, _ = h.geoip.GetName(ip)
-	} else if iputils.IsIPv6(ip) {
-		name, _ = h.geoip.GetNameV6(ip)
-	} else {
+	ip_, is4 := iputils.ParseIP(ip)
+	if ip_ == nil {
 		return "", ""
+	}
+	if is4 {
+		name, _ = h.geoip4.GetName(ip)
+	} else {
+		name, _ = h.geoip6.GetNameV6(ip)
 	}
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -224,9 +232,6 @@ func (h Handler) lookupAsnUncached(ip string) (string, string, error) {
 // an ASN identification
 // and the corresponding description.
 func (h Handler) IpInfoLookup(ip string) (string, string, error) {
-	if !iputils.IsIP(ip) {
-		return "", "", MalformedIPError
-	}
 	client := &http.Client{
 		Timeout: h.timeout,
 	}
