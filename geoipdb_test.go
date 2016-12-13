@@ -27,12 +27,14 @@ package geoipdb_test
 
 import (
 	"fmt"
+	"net"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/turbobytes/geoipdb"
+	"github.com/turbobytes/geoipdb/iputils"
 	"gopkg.in/mgo.v2"
 )
 
@@ -282,5 +284,100 @@ func TestAsnCacheList(t *testing.T) {
 	asns := gh.AsnCacheList()
 	if !reflect.DeepEqual(asns, expected) {
 		t.Fatalf("AsnCacheList result mismatch: expected %v, got %v", expected, asns)
+	}
+}
+
+func TestIsLocalIP(t *testing.T) {
+	publicIps := []string{
+		"8.8.8.8",
+		"74.125.130.100",
+		"1.1.1.1",
+		"45.45.45.45",
+		"120.222.111.222",
+		"2404:6800:4003:c01::64",
+	}
+	privateIps := []string{
+		"127.0.0.1",
+		"10.5.6.4",
+		"192.168.5.99",
+		"100.66.55.66",
+		"fd07:a47c:3742:823e:3b02:76:982b:463",
+		"::1",
+	}
+	for _, ip := range publicIps {
+		if iputils.IsLocalIP(net.ParseIP(ip)) {
+			t.Fatalf("IsLocalIp(%s) returned %s", ip, "true")
+		}
+	}
+	for _, ip := range privateIps {
+		if !iputils.IsLocalIP(net.ParseIP(ip)) {
+			t.Fatalf("IsLocalIp(%s) returned %s", ip, "false")
+		}
+	}
+}
+
+func TestLookupAsnMalformedIP(t *testing.T) {
+	ip := "192.168.0"
+	_, _, err := gh.LookupAsn(ip)
+	if err != geoipdb.MalformedIPError {
+		t.Fatalf("unexpected LookupAsn error: %v", err)
+	}
+}
+
+func TestLookupAsnIPv6(t *testing.T) {
+	ip := "2001:4860:1004::876:102"
+	_, _, err := gh.LookupAsn(ip)
+	if err != nil {
+		t.Fatalf("unexpected LookupAsn error: %v", err)
+	}
+}
+
+func TestLookupAsnPrivateIP(t *testing.T) {
+	ip := "192.168.0.101"
+	_, _, err := gh.LookupAsn(ip)
+	if err != geoipdb.PrivateIPError {
+		t.Fatalf("unexpected LookupAsn error: %v", err)
+	}
+}
+
+type ipTestData struct {
+	ip    string
+	asn   string
+	descr string
+	err   string
+}
+
+func TestLookupAsnOtherIPs(t *testing.T) {
+	tests := []ipTestData{
+		ipTestData{"1.1.1.1", "", "", "unknown ASN for ip '1.1.1.1'"},
+		ipTestData{"8.8.8.8", "AS15169", "Google Inc.", ""},
+		ipTestData{"10.0.45.98", "", "", "private IP address"},
+		ipTestData{"74.125.130.100", "AS15169", "Google Inc.", ""},
+		ipTestData{"80.10.246.2", "", "", "unknown ASN for ip '80.10.246.2'"},
+		ipTestData{"80.10.246.129", "", "", "unknown ASN for ip '80.10.246.129'"},
+		ipTestData{"127.0.0.1", "", "", "private IP address"},
+		ipTestData{"192.168.0.102", "", "", "private IP address"},
+		ipTestData{"2001:4860:1004::876:102", "AS15169", "Google Inc.", ""},
+		ipTestData{"fc00::c01:64", "", "", "private IP address"},
+		ipTestData{"ns1.google.com", "", "", "malformed IP address"},
+		ipTestData{"ns2.google.com", "", "", "malformed IP address"},
+	}
+	for _, test := range tests {
+		asn, descr, err := gh.LookupAsn(test.ip)
+		if asn != test.asn {
+			t.Fatalf("unexpected ASN returned by LookupAsn(\"%s\"): %s", test.ip, asn)
+		}
+		if descr != test.descr {
+			t.Fatalf("unexpected AS name returned by LookupAsn(\"%s\"): %s", test.ip, descr)
+		}
+		if err == nil {
+			if test.err != "" {
+				t.Fatalf("unexpected error returned by LookupAsn(\"%s\"): %s", test.ip, "nil")
+			}
+		} else {
+			if err.Error() != test.err {
+				t.Fatalf("unexpected error returned by LookupAsn(\"%s\"): %s", test.ip, err)
+			}
+		}
 	}
 }

@@ -42,8 +42,8 @@ see other Handler lookup methods.
 package geoipdb
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -53,6 +53,7 @@ import (
 
 	"github.com/abh/geoip"
 	"github.com/miekg/dns"
+	"github.com/turbobytes/geoipdb/iputils"
 	"gopkg.in/mgo.v2"
 )
 
@@ -70,9 +71,17 @@ var (
 	reDNSFilter *regexp.Regexp
 )
 
+var (
+	// MalformedIPError is returned on parse failure of IP parameter.
+	MalformedIPError = errors.New("malformed IP address")
+	// PrivateIPError is returned on AS lookup of a private IP address.
+	PrivateIPError = errors.New("private IP address")
+)
+
 // Handler is a handler to TurboBytes GeoIP helper functions.
 type Handler struct {
-	geoip     *geoip.GeoIP
+	geoip4    *geoip.GeoIP
+	geoip6    *geoip.GeoIP
 	cymru     cymruClient
 	timeout   time.Duration
 	overrides *mgo.Collection
@@ -91,13 +100,18 @@ type Handler struct {
 //
 // Returns a geoipdb handler.
 func NewHandler(overrides *mgo.Collection, timeout time.Duration) (Handler, error) {
-	ge, err := geoip.OpenType(geoip.GEOIP_ASNUM_EDITION)
+	ge4, err := geoip.OpenType(geoip.GEOIP_ASNUM_EDITION)
+	if err != nil {
+		return Handler{}, fmt.Errorf("cannot open GeoIP database: %s", err)
+	}
+	ge6, err := geoip.OpenType(geoip.GEOIP_ASNUM_EDITION_V6)
 	if err != nil {
 		return Handler{}, fmt.Errorf("cannot open GeoIP database: %s", err)
 	}
 	cy := newCymruClient(timeout)
 	return Handler{
-		geoip:     ge,
+		geoip4:    ge4,
+		geoip6:    ge6,
 		cymru:     cy,
 		timeout:   timeout,
 		overrides: overrides,
@@ -111,15 +125,21 @@ func NewHandler(overrides *mgo.Collection, timeout time.Duration) (Handler, erro
 // an ASN identification
 // and the corresponding description.
 func (h Handler) LibGeoipLookup(ip string) (string, string) {
-	if ip == "" {
+	var name string
+	ipAddr, isIPv4 := iputils.ParseIP(ip)
+	if ipAddr == nil {
 		return "", ""
 	}
-	tmp, _ := h.geoip.GetName(ip)
-	tmp = strings.TrimSpace(tmp)
-	if tmp == "" {
+	if isIPv4 {
+		name, _ = h.geoip4.GetName(ip)
+	} else {
+		name, _ = h.geoip6.GetNameV6(ip)
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
 		return "", ""
 	}
-	answer := strings.SplitN(tmp, " ", 2)
+	answer := strings.SplitN(name, " ", 2)
 	if len(answer) < 2 {
 		return answer[0], ""
 	}
@@ -141,8 +161,13 @@ func (h Handler) LibGeoipLookup(ip string) (string, string) {
 // an ASN identification
 // and the corresponding description.
 func (h Handler) LookupAsn(ip string) (string, string, error) {
-	if ip == "" {
-		return "", "", errors.New("empty ip parameter")
+	// Sanity check input
+	ipAddr, _ := iputils.ParseIP(ip)
+	if ipAddr == nil {
+		return "", "", MalformedIPError
+	}
+	if iputils.IsLocalIP(ipAddr) {
+		return "", "", PrivateIPError
 	}
 	// Try cache
 	asn, descr, expired, found := h.cache.lookupByIP(ip)
@@ -162,9 +187,6 @@ func (h Handler) LookupAsn(ip string) (string, string, error) {
 
 // lookupAsnUncached is the uncached version of LookupAsn.
 func (h Handler) lookupAsnUncached(ip string) (string, string, error) {
-	if ip == "" {
-		return "", "", errors.New("empty ip parameter")
-	}
 	// Try libgeoip
 	asnGi, asnDescr := h.LibGeoipLookup(ip)
 	if asnGi != "" && asnDescr != "" {
@@ -210,9 +232,6 @@ func (h Handler) lookupAsnUncached(ip string) (string, string, error) {
 // an ASN identification
 // and the corresponding description.
 func (h Handler) IpInfoLookup(ip string) (string, string, error) {
-	if ip == "" {
-		return "", "", errors.New("empty ip parameter")
-	}
 	client := &http.Client{
 		Timeout: h.timeout,
 	}
@@ -274,9 +293,6 @@ func newCymruClient(timeout time.Duration) cymruClient {
 func (cc cymruClient) lookup(asn string) (string, error) {
 	if asn == "" {
 		return "", fmt.Errorf("empty asn parameter")
-	}
-	if !reASN.MatchString(asn) {
-		log.Printf("warning: '%s' doesn't look a proper ASN identification.\n", asn)
 	}
 	if cc.dnsClient == nil {
 		return "", fmt.Errorf("cymruClient not initialized")
